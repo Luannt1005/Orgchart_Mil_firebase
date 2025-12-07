@@ -12,7 +12,7 @@
     "@balkangraph/orgchart.js": "^8.21.30",
     "axios": "^1.13.2",
     "bootstrap": "^5.3.8",
-    "next": "^16.0.6",
+    "next": "^16.0.0",
     "next-transpile-modules": "^10.0.1",
     "react": "^19.2.0",
     "react-bootstrap": "^2.10.10",
