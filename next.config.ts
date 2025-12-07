@@ -1,11 +1,7 @@
-/** @type {import('next').NextConfig} */
+/** @type {import("next").NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,        // Disable ESLint errors on Netlify build
-  },
-  typescript: {
-    ignoreBuildErrors: true,         // Disable TS errors during build
-  },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
 };
 
 export default nextConfig;
