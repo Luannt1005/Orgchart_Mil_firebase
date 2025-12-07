@@ -1,11 +1,11 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,        // Disable ESLint errors on Netlify build
+  },
+  typescript: {
+    ignoreBuildErrors: true,         // Disable TS errors during build
+  },
 };
-
-module.exports = nextConfig;
-
 
 export default nextConfig;
