@@ -28,13 +28,13 @@ export default function Home() {
   <div>
     <ul>
       <li className = {x['red']}>
-        <Link href="/Facebook"> 
-        <span className= {y['red']}>Facebook</span>
+        <Link href="/Global Orgchart"> 
+        <span className= {y['red']}>Global Orgchart</span>
         </Link>
         
       </li>
       <li style={{margin :"20px 0"}}>
-        <a href="/Youtube"> Youtube</a>
+        <a href="/Customize"> Customize</a>
       </li>
       <li>
         <a href="/Orgchart"> Orgchart</a>

@@ -4,14 +4,42 @@ import { useEffect, useRef, useState } from "react";
 import OrgChart from "@balkangraph/orgchart.js";
 import axios from "axios";
 import { patchOrgChartTemplates } from "./OrgChartTemplates";
+import "./OrgChart.css";
+// removed unused import of `title` from 'process'
 
-export default function OrgChartView() {
-    
 
 
+interface OrgChartProps {selectedGroup: string;}
+
+export default function OrgChartView({ selectedGroup }: OrgChartProps)  {
     const treeRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null); // <── lưu instance của chart
-    
+    const [enableDragDrop, setEnableDragDrop] = useState(false);
+
+    // Listen for Ctrl key
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey) setEnableDragDrop(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (!e.ctrlKey) setEnableDragDrop(false);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
+
+    // Update chart dragDrop when state changes
+    useEffect(() => {
+        if (chartRef.current) {
+            chartRef.current.config.enableDragDrop = enableDragDrop;
+            chartRef.current.draw();
+        }
+    }, [enableDragDrop]);
+
     const addDepartment = async (nodeId: string) => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -30,18 +58,20 @@ export default function OrgChartView() {
     // Gửi qua API Next.js (không gọi GAS trực tiếp)
     await axios.post("/api/add-Department", data);
 };
-    
+
 
     useEffect(() => {
         const el = treeRef.current;
         if (!el) return;
 
         patchOrgChartTemplates();
+        
+        const url = selectedGroup
+        ? `/api/filter_dept?group=${encodeURIComponent(selectedGroup)}`
+        : `/api/filter_dept`;
 
         const loadData = async () => {
-            const { data } = await axios.get(
-                "https://script.google.com/macros/s/AKfycbzXlPZTDuLdpfzivyVg-tXXV6bKsavMkb1JbgWIPwGNtyEmxvP-ar00J6l6MIysnjxbPg/exec"
-            );
+            const { data } = await axios.get(url);
 
             const list = Array.isArray(data?.data) ? data.data : [];
 
@@ -51,14 +81,17 @@ export default function OrgChartView() {
                 img: n.img || n.photo || "",
             }));
 
-            const chart = new OrgChart(el, {
+            const chart = new OrgChart(el,   {
                 mouseScrool: OrgChart.none,
+                collapse: { level: 1, allChildren: true },
                 scaleInitial: 1,
                 enableSearch: true,
                 enableAI: false,
                 layout: OrgChart.normal,
                 template: "big",
-                enableDragDrop: true,
+                enableDragDrop: enableDragDrop,
+                // filterBy: {type :{}},
+                filterBy: ['type'],
 
                 nodeBinding: {
                     imgs: "img",
@@ -79,18 +112,22 @@ export default function OrgChartView() {
                                 add: { text: "Add" },
                                 remove: { text: "Remove" }
                 },
-                 editForm: {
+                editForm: {
                     cancelBtn: 'Close',
                     saveAndCloseBtn: 'Save'
-                            }   ,
+                            },
+                
                 tags: {
                     group: {
                         template: "group",
                     },
-
+                    filter: {
+                        template: "dot",
+                    },
                 },
                 
             });
+            
             
 
 
@@ -143,14 +180,6 @@ export default function OrgChartView() {
     }, 0); // chạy cuối cùng sau khi OrgChart update xong
 });
 
-
-
-
-
-
-
-            // 
- 
             chart.on("drop", (sender, draggedNodeId, droppedNodeId) => {
                 const draggedNode = sender.getNode(draggedNodeId);
                 const droppedNode = sender.getNode(droppedNodeId);
@@ -237,10 +266,8 @@ export default function OrgChartView() {
                         // ⏳ Delay để chart update UI xong
                         setTimeout(() => {
                             removeNodeDB();
-                        }, 300); // bạn có thể tăng lên 500 nếu cần
+                        }, 50); // bạn có thể tăng lên 500 nếu cần
                     });
-
-
 
 
 
@@ -250,7 +277,14 @@ export default function OrgChartView() {
         };
 
         loadData();
-    }, []);
+    }, [selectedGroup]);
 
-    return <div ref={treeRef} style={{ width: "100%", height: "100vh" }} />;
+    return (
+    <div
+        id="tree"
+        ref={treeRef}
+        style={{ width: "100%", height: "100vh" }}
+    />
+);
+
 }

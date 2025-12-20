@@ -1,10 +1,16 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
 import OrgChartView from "./OrgChartView";
 
 export default function OrgChartPage() {
-    return (
-        <div style={{ width: "100%", height: "100vh" }}>
-            <div>Org Chart TTI VN</div>
-            <OrgChartView />
-        </div>
-    );
+  const searchParams = useSearchParams();
+  const group = searchParams.get("group") || ""; // Lấy group từ URL
+
+  return (
+    <div className="h-dvh">
+      <h2>Org Chart TTI VN</h2>
+      <OrgChartView selectedGroup={group} />
+    </div>
+  );
 }

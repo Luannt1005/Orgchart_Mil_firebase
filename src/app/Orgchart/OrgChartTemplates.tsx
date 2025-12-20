@@ -35,14 +35,27 @@ export function patchOrgChartTemplates() {
 
       OrgChart.templates.group.link =
         `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`
-      OrgChart.templates.group.nodeMenuButton = ''
-      OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group)
-      OrgChart.templates.group.min.imgs = `{val}`
-      OrgChart.templates.group.min.img_0 = ``
-      OrgChart.templates.group.unitName = ''
-      OrgChart.templates.group.field_0 = '<text data-width="900" style="font-size: 25px;" fill="#000" x="{cw}" y="30" font-weight="bold" text-anchor="middle">{val}</text>'
+      OrgChart.templates.group.nodeMenuButton = '';
+      OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group);
+      OrgChart.templates.group.min.imgs = `{val}`;
+      OrgChart.templates.group.min.img_0 = ``;
+      OrgChart.templates.group.unitName = '';
+      OrgChart.templates.group.field_0 = '<text data-width="900" style="font-size: 25px;" fill="#000" x="{cw}" y="30" font-weight="bold" text-anchor="middle">{val}</text>';
 
-    //   OrgChart.templates.group.node = OrgChart.templates.group.node.replace('<rect ', '<rect fill="white" ').replace('<rect ', '<rect filter="url(#outsideStroke)"').replace(/rx="\d+"/, 'rx="2"').replace(/ry="\d+"/, 'ry="2"').replace('</rect>', '</rect> <rect x="0" y="0" height="48" width="{w}" rx="2" ry="2" fill="gray"></rect>')
+    // Ensure the group template exists and `node` is a string before modifying it
+    if (!OrgChart.templates.group) {
+      OrgChart.templates.group = Object.assign({}, OrgChart.templates.ana);
+    }
+
+    if (typeof OrgChart.templates.group.node === 'string') {
+      OrgChart.templates.group.node = OrgChart.templates.group.node
+        .replace('<rect ', '<rect fill="white" ')
+        .replace('<rect ', '<rect filter="url(#outsideStroke)"')
+        .replace(/rx="\d+"/, 'rx="2"')
+        .replace(/ry="\d+"/, 'ry="2"')
+        .replace('</rect>', '</rect> <rect x="0" y="0" height="48" width="{w}" rx="2" ry="2" fill="gray"></rect>');
+    }
+
 
 
 }

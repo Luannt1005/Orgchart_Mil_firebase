@@ -1,0 +1,9 @@
+#tree {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to top right, #ffeef5 0%, #dff6ff 71%, #dff6ff 71%, #fffbee 100%);
+}
+
+#tree .boc-node {
+    border-radius: 12px;
+}
