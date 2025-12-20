@@ -7,13 +7,17 @@
 'use client';
 
 import useSWR, { SWRConfiguration } from 'swr';
+import { useRef } from 'react';
 import { OrgNode, ApiResponse } from '@/types/orgchart';
 import { swrFetcher } from '@/lib/api-client';
 import { GET_DATA_API } from '@/constant/api';
 
+// Cache configuration
 const CACHE_REVALIDATE_INTERVAL = parseInt(
   process.env.NEXT_PUBLIC_CACHE_REVALIDATE_INTERVAL || '60000'
 );
+const DEDUPING_INTERVAL = 5 * 60 * 1000; // 5 minutes - keep cache active for this duration
+const FOCUS_THROTTLE_INTERVAL = 10 * 60 * 1000; // 10 minutes - don't revalidate when focusing tab
 
 interface UseOrgDataOptions extends SWRConfiguration {
   onSuccess?: (data: OrgNode[]) => void;
@@ -21,17 +25,34 @@ interface UseOrgDataOptions extends SWRConfiguration {
 }
 
 export function useOrgData(options?: UseOrgDataOptions) {
+  // Track if we've already attempted to revalidate empty data
+  const revalidateAttemptedRef = useRef(false);
+
   // Build SWR config safely, avoiding callback conflicts
   const baseConfig: SWRConfiguration = {
-    // Time-based revalidation strategy (Option A)
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: true,
-    focusThrottleInterval: CACHE_REVALIDATE_INTERVAL,
-    dedupingInterval: CACHE_REVALIDATE_INTERVAL, // Deduplicate requests within 60s
+    // Conservative caching strategy - prioritize cache over fresh data
+    revalidateOnFocus: false, // Don't revalidate when tab regains focus
+    revalidateOnReconnect: false, // Don't revalidate on reconnect
+    revalidateIfStale: false, // Don't auto-revalidate if stale
+    revalidateOnMount: false, // Use cached data when component mounts (critical!)
+    shouldRetryOnError: false, // Don't retry on error automatically
+    focusThrottleInterval: FOCUS_THROTTLE_INTERVAL,
+    dedupingInterval: DEDUPING_INTERVAL, // Deduplicate requests within 5 minutes
     compare: (a, b) => {
       // Custom comparison to avoid unnecessary re-renders
       return JSON.stringify(a) === JSON.stringify(b);
+    },
+    onSuccess: (fetchedData) => {
+      // Log successful fetch
+      const dataLength = fetchedData?.data?.length || 0;
+      console.log(`✅ Data fetched successfully: ${dataLength} items`);
+      // Reset revalidate attempt flag when we get new data
+      if (dataLength > 0) {
+        revalidateAttemptedRef.current = false;
+      }
+    },
+    onError: (error) => {
+      console.error('❌ Error fetching data:', error.message);
     },
   };
 
@@ -54,6 +75,17 @@ export function useOrgData(options?: UseOrgDataOptions) {
 
   // Extract nodes array from response
   const nodes = data?.data ?? [];
+
+  // Check if data is empty AND we haven't attempted revalidate yet
+  // Only revalidate ONCE if cache is completely empty
+  if (!isLoading && nodes.length === 0 && !revalidateAttemptedRef.current) {
+    console.warn('⚠️ Data is empty, attempting single revalidation...');
+    revalidateAttemptedRef.current = true;
+    // Use setTimeout to prevent synchronous state update issues
+    setTimeout(() => {
+      mutate(undefined, { revalidate: true });
+    }, 0);
+  }
 
   // Extract unique group names
   const groups = Array.from(
@@ -154,13 +186,20 @@ function filterNodesByGroup(
 /**
  * Hook to manually trigger cache revalidation
  * Useful after create/update/delete operations
+ * Note: Only use this after mutations (add/update/delete)
  */
 export function useRevalidateOrgData() {
   const { mutate } = useOrgData();
 
-  const revalidate = async () => {
+  const revalidate = async (shouldRevalidate = true) => {
     try {
-      await mutate();
+      // Only revalidate when explicitly needed (after mutations)
+      if (shouldRevalidate) {
+        console.log('🔄 Revalidating org data after mutation...');
+        await mutate(undefined, {
+          revalidate: true, // Force fresh data from server
+        });
+      }
       return true;
     } catch (error) {
       console.error('Failed to revalidate org data:', error);

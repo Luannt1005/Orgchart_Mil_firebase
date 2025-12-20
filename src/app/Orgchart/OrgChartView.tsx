@@ -6,6 +6,7 @@ import { useFilteredOrgData, useRevalidateOrgData } from "@/hooks/useOrgData";
 import { apiClient } from "@/lib/api-client";
 import { UPDATE_NODE_API, REMOVE_NODE_API, ADD_DEPARTMENT_API } from "@/constant/api";
 import { patchOrgChartTemplates } from "./OrgChartTemplates";
+import LoadingScreen from "@/components/loading-screen";
 import "./OrgChart.css";
 
 interface OrgChartProps {
@@ -19,9 +20,6 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
   // Use cached global data instead of fetching
   const { nodes, loading } = useFilteredOrgData(selectedGroup);
   const { revalidate } = useRevalidateOrgData();
-
-    console.log("OrgChart initialized with groups outside:", selectedGroup);
-    console.log("OrgChart initialized nodes:", nodes);
 
 //    Listen for Ctrl key
     useEffect(() => {
@@ -244,6 +242,11 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
     chart.load(chartNodes);
     console.log("OrgChart initialized with groups in side:", selectedGroup);
   }, [selectedGroup, nodes]);
+
+  // Show loading screen while data is loading
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div

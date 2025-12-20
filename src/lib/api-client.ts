@@ -71,17 +71,24 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 /**
- * SWR Fetcher function
+ * SWR Fetcher function with intelligent caching
+ * Uses browser cache for GET requests
  */
 export const swrFetcher = async (url: string) => {
   try {
     const response = await fetch(url, {
-      cache: 'no-store',
+      // Use browser cache - only revalidate if cache is stale (default behavior)
+      cache: 'default',
+      headers: {
+        'Accept': 'application/json',
+      },
     });
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
-    return response.json();
+    const data = await response.json();
+    console.log(`✓ Fetched from ${response.headers.get('x-from-cache') ? 'cache' : 'server'}: ${url}`);
+    return data;
   } catch (error) {
     console.error('SWR Fetch Error:', error);
     throw error;

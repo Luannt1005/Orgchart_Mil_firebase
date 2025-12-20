@@ -113,30 +113,26 @@ function AppHeader() {
 
                   {!loading &&
                     filteredGroups.map(name => (
-                      <button
+                      <Link
                         key={name}
-                        onClick={() => {
-                          goOrgChart(name);
-                          setIsDropdownOpen(false);
-                        }}
+                        href={name
+                      ? `/Orgchart?group=${encodeURIComponent(name)}`
+                      : "/Orgchart"}
                         className="mwk-dropdown-item"
                       >
                         {name}
-                      </button>
+                      </Link>
                     ))}
                 </div>
 
                 {/* Footer */}
                 <div className="mwk-dropdown-footer">
-                  <button
-                    onClick={() => {
-                      goOrgChart();
-                      setIsDropdownOpen(false);
-                    }}
-                    className="mwk-dropdown-item-view-all"
-                  >
-                    Xem tất cả phòng ban
-                  </button>
+                  <Link
+                        href={"/Orgchart"}
+                        className="mwk-dropdown-item"
+                      >
+                        Xem tất cả phòng ban
+                      </Link>
                 </div>
               </div>
             </div>
