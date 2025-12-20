@@ -26,21 +26,7 @@ export default function Home() {
 
   return (
   <div>
-    <ul>
-      <li className = {x['red']}>
-        <Link href="/Global Orgchart"> 
-        <span className= {y['red']}>Global Orgchart</span>
-        </Link>
-        
-      </li>
-      <li style={{margin :"20px 0"}}>
-        <a href="/Customize"> Customize</a>
-      </li>
-      <li>
-        <a href="/Orgchart"> Orgchart</a>
-      </li>
-    </ul>
-    <AppTable/>
+    
   </div>
   );
 }
