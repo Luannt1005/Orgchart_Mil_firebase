@@ -100,7 +100,9 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
       enableDragDrop: false,
       layout: OrgChart.normal,
       template: "big",
-      filterBy: ["type"],
+      filterBy: {
+        type: {},
+      },
       nodeBinding: {
         imgs: "img",
         field_0: "name",

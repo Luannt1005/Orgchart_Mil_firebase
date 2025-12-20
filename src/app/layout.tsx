@@ -28,7 +28,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} bg-gray-50`}>
         <AppHeader />
-        <main className="min-h-screen flex flex-col w-full">
+        <main className="min-h-screen flex flex-col w-full" style={{ paddingTop: '75px' }}>
           <div className="flex-1">
             {children}
           </div>
