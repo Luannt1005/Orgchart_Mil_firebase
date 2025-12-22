@@ -12,7 +12,8 @@ export const ADD_DEPARTMENT_API = '/add-Department';
 export const UPDATE_NODE_API = '/Update-Node';
 export const REMOVE_NODE_API = '/Remove-Node';
 
-export const NEXT_PUBLIC_GAS_DATA_URL = 'https://script.google.com/macros/s/AKfycbzXlPZTDuLdpfzivyVg-tXXV6bKsavMkb1JbgWIPwGNtyEmxvP-ar00J6l6MIysnjxbPg/exec';
+// export const NEXT_PUBLIC_GAS_DATA_URL = 'https://script.google.com/macros/s/AKfycbzXlPZTDuLdpfzivyVg-tXXV6bKsavMkb1JbgWIPwGNtyEmxvP-ar00J6l6MIysnjxbPg/exec';
+export const NEXT_PUBLIC_GAS_DATA_URL = 'https://script.google.com/macros/s/AKfycbxybedfanBV0w2vwgX_wWLcpfG4qxUtXiJHVfcmpGQyBeYeVmmB_kyoYcmLeIhWJnexIw/exec';
 export const NEXT_PUBLIC_GAS_ADD_DEPT_URL = 'https://script.google.com/macros/s/AKfycbxxNzicVtDDPnLMFY5aoSCQ2ZxXGMC9gLtl18-UKVZkIgfPI2nHH8UfW8ZE8rf_GwmZlQ/exec';
 export const NEXT_PUBLIC_GAS_UPDATE_NODE_URL = 'https://script.google.com/macros/s/AKfycbypcbXZrBEehjlpMZuYKTALdKpz3squYGldxo8W9wpcdo2K_GGXX-TLHj-_bmevMjlEWA/exec';
 export const NEXT_PUBLIC_GAS_REMOVE_NODE_URL = 'https://script.google.com/macros/s/AKfycbx7hj4pWsjxLcbDkV3KOVsYicil6Z_Pg2DUj_jyvZLSZFRHk37gizyi0AQveV9l1s6xiQ/exec'
@@ -25,3 +26,4 @@ export const CACHE_CONFIG = {
   ),
   STALE_WHILE_REVALIDATE: 120000, // 2 minutes
 };
+

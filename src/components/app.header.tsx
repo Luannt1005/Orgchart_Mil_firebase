@@ -60,7 +60,7 @@ function AppHeader() {
               href="/Global_Orgchart"
               className={`mwk-nav-link ${pathname === "/Global_Orgchart" ? "active" : ""}`}
             >
-              Sơ đồ Toàn cầu
+              Dashboard HR
             </Link>
             <Link
               href="/Customize"
