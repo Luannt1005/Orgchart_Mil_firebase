@@ -4,34 +4,57 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import OrgChart from "@balkangraph/orgchart.js";
 
 const LOAD_URL =
-  "https://script.google.com/macros/s/AKfycbzbWJUtJ77FWSWkyR_A6RaEvvK9WKFlnNIRTDsXLggcxihknZcF4JhAGgIybKMmE807/exec";
-
-const ORG_ID = "org_admin_2";
+  "https://script.google.com/macros/s/AKfycbzFljc10QGi4ZrXYyzFrrleppT4PMRmfGqCFRqpt2d8Pv93OLeJpcb8QpB8WuKCtuAS/exec";
 
 const Customize = () => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<any>(null);
-  const originalNodesRef = useRef<any[]>([]); // Store original nodes
+  const originalNodesRef = useRef<any[]>([]);
   
+  const [orgId, setOrgId] = useState<string>("");
+  const [orgList, setOrgList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingChart, setLoadingChart] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
+  /* ================= LOAD ORG LIST ================= */
+  useEffect(() => {
+    const loadOrgList = async () => {
+      try {
+        const response = await fetch(`${LOAD_URL}?action=list`);
+        const data = await response.json();
+        
+        if (data.orgs && Array.isArray(data.orgs)) {
+          setOrgList(data.orgs);
+          if (data.orgs.length > 0) {
+            setOrgId(data.orgs[0].org_id);
+          }
+        }
+      } catch (err) {
+        console.error("Load org list error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrgList();
+  }, []);
+
   /* ================= SAVE ================= */
   const saveData = useCallback(async () => {
-    if (!chartInstance.current || isSaving) return;
+    if (!chartInstance.current || isSaving || !orgId) return;
 
     setIsSaving(true);
 
     try {
       const chart = chartInstance.current;
       
-      // Update original nodes with current state from chart
       const allNodes = originalNodesRef.current.map((originalNode: any) => {
         const currentNode = chart.get(originalNode.id);
         
         if (currentNode) {
-          // Merge original node with current state
           return {
             ...originalNode,
             pid: currentNode.pid || originalNode.pid || '',
@@ -42,7 +65,6 @@ const Customize = () => {
             photo: currentNode.photo || originalNode.photo || '',
             img: currentNode.img || originalNode.img || '',
             tags: Array.isArray(currentNode.tags) ? currentNode.tags : (currentNode.tags ? [currentNode.tags] : []),
-            // Preserve any other properties from original
             ...Object.keys(originalNode).reduce((acc: any, key: string) => {
               if (!['id', 'pid', 'ppid', 'stpid', 'name', 'title', 'photo', 'img', 'tags'].includes(key)) {
                 acc[key] = originalNode[key];
@@ -55,13 +77,12 @@ const Customize = () => {
       });
 
       console.log("Saving all nodes:", allNodes);
-      console.log("Total nodes:", allNodes.length);
 
       const response = await fetch("/api/save_data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          org_id: ORG_ID,
+          org_id: orgId,
           org_data: { data: allNodes }
         })
       });
@@ -84,60 +105,134 @@ const Customize = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [isSaving]);
+  }, [isSaving, orgId]);
 
-  /* ================= LOAD ================= */
-  useEffect(() => {
-    fetch(`${LOAD_URL}?org_id=${ORG_ID}`)
-      .then(res => res.json())
-      .then(res => {
-        if (!res.org_data || !chartRef.current) return;
+  /* ================= LOAD CHART DATA ================= */
+  const loadChartData = async (selectedOrgId: string) => {
+    if (!selectedOrgId) return;
 
-        const orgJson = JSON.parse(res.org_data);
-        console.log("Loaded org data:", orgJson);
+    setLoadingChart(true);
+    try {
+      const response = await fetch(`${LOAD_URL}?org_id=${selectedOrgId}`);
+      const res = await response.json();
 
-        // Store original nodes
-        originalNodesRef.current = orgJson.data;
+      if (!res.org_data || !chartRef.current) {
+        alert("❌ Không tìm thấy dữ liệu");
+        setLoadingChart(false);
+        return;
+      }
 
-        const chartNodes = orgJson.data.map((n: any) => ({
-          ...n,
-          tags: Array.isArray(n.tags) ? n.tags : (n.tags ? [n.tags] : []),
-          img: n.img || n.photo || "",
-        }));
+      const orgJson = JSON.parse(res.org_data);
+      console.log("Loaded org data:", orgJson);
 
-        chartInstance.current = new OrgChart(chartRef.current, {
-          template: "olivia",
-          enableDragDrop: true,
-          nodeBinding: {
-            field_0: "name",
-            field_1: "title",
-            img_0: "photo"
-          },
-        });
+      originalNodesRef.current = orgJson.data;
 
-        chartInstance.current.load(chartNodes);
+      const chartNodes = orgJson.data.map((n: any) => ({
+        ...n,
+        tags: Array.isArray(n.tags) ? n.tags : (n.tags ? [n.tags] : []),
+        img: n.img || n.photo || "",
+      }));
 
-        // Listen for changes
-        chartInstance.current.on('update', () => {
-          console.log("Chart updated");
-          setHasChanges(true);
-        });
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
 
-        chartInstance.current.on('drop', () => {
-          console.log("Node dropped");
-          setHasChanges(true);
-        });
+      chartInstance.current = new OrgChart(chartRef.current, {
+        template: "olivia",
+        enableDragDrop: true,
+        nodeBinding: {
+          field_0: "name",
+          field_1: "title",
+          img_0: "photo"
+        },
+      });
 
-        chartInstance.current.on('remove', () => {
-          console.log("Node removed");
-          setHasChanges(true);
-        });
-      })
-      .catch(err => console.error("Load error", err));
-  }, []);
+      chartInstance.current.load(chartNodes);
+      setHasChanges(false);
+
+      chartInstance.current.on('update', () => {
+        console.log("Chart updated");
+        setHasChanges(true);
+      });
+
+      chartInstance.current.on('drop', () => {
+        console.log("Node dropped");
+        setHasChanges(true);
+      });
+
+      chartInstance.current.on('remove', () => {
+        console.log("Node removed");
+        setHasChanges(true);
+      });
+    } catch (err) {
+      console.error("Load error", err);
+      alert("❌ Lỗi khi tải dữ liệu");
+    } finally {
+      setLoadingChart(false);
+    }
+  };
+
+  const handleLoadClick = () => {
+    loadChartData(orgId);
+  };
+
+  if (loading) {
+    return <div style={{ width: "100%", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading...</div>;
+  }
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          left: 10,
+          zIndex: 10,
+          display: "flex",
+          gap: "8px",
+          alignItems: "center",
+          background: "#f3f4f6",
+          padding: "8px 12px",
+          borderRadius: 6
+        }}
+      >
+        <select
+          value={orgId}
+          onChange={(e) => setOrgId(e.target.value)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 4,
+            border: "1px solid #ddd",
+            fontSize: "14px",
+            fontWeight: "bold",
+            minWidth: "200px"
+          }}
+        >
+          {orgList.map((org) => (
+            <option key={org.org_id} value={org.org_id}>
+              {org.username} - {org.org_id}
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={handleLoadClick}
+          disabled={loadingChart}
+          style={{
+            padding: "8px 16px",
+            background: loadingChart ? "#9ca3af" : "#10b981",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: loadingChart ? "not-allowed" : "pointer",
+            fontWeight: "bold",
+            fontSize: "14px"
+          }}
+        >
+          {loadingChart ? "Đang tải..." : "Load"}
+        </button>
+      </div>
+
       <div
         style={{
           position: "absolute",
@@ -154,12 +249,12 @@ const Customize = () => {
       >
         {lastSaveTime && (
           <span style={{ fontSize: "12px", color: "#666" }}>
-            💾 Lần lưu gần nhất: {lastSaveTime}
+            💾 {lastSaveTime}
           </span>
         )}
         {hasChanges && (
           <span style={{ fontSize: "12px", color: "#ea8c55" }}>
-            ⚠️ Có thay đổi chưa lưu
+            ⚠️ Chưa lưu
           </span>
         )}
         <button
