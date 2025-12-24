@@ -15,6 +15,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ✅ Cho phép login page
+  if (pathname === "/signup") {
+    return NextResponse.next();
+  }
+
+
   // 🔒 Chưa login → đá về login
   if (!auth) {
     return NextResponse.redirect(new URL("/login", request.url));
