@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
+import { NEXT_PUBLIC_GAS_REMOVE_NODE_URL } from "@/constant/api";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     // Get GAS URL from environment
-    const gasUrl = process.env.NEXT_PUBLIC_GAS_REMOVE_NODE_URL;
+    const gasUrl = NEXT_PUBLIC_GAS_REMOVE_NODE_URL;
     if (!gasUrl) {
       console.error("GAS_REMOVE_NODE_URL is not configured");
       throw new Error("Remove-Node GAS URL is not configured");

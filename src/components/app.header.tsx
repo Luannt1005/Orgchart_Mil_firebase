@@ -112,6 +112,13 @@ function AppHeader() {
             >
               Dashboard HR
             </Link>
+             <Link
+              href="/SheetManager"
+              className={`mwk-nav-link ${pathname === "/SheetManager" ? "active" : ""}`}
+            >
+              Edit table HR
+            </Link>
+
             <Link
               href="/Customize"
               className={`mwk-nav-link ${pathname === "/Customize" ? "active" : ""}`}
