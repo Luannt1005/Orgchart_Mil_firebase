@@ -144,6 +144,13 @@ function AppHeader() {
             >
               Orgchart tùy chỉnh
             </Link>
+
+            <Link
+              href="/view_account"
+              className={`mwk-nav-link ${pathname === "/view_account" ? "active" : ""}`}
+            >
+              Quản lý tài khoản
+            </Link>
           </nav>
 
           {/* User Profile - Right */}

@@ -6,6 +6,12 @@ import Link from "next/link";
 import Image from "next/image";
 import "./signup.css";
 
+// Firebase imports
+import { auth, db } from "@/lib/firebase";
+import { signInAnonymously, signOut } from "firebase/auth";
+import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { hashPassword } from "@/lib/password"; // Client-side compatible hashing
+
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
@@ -39,29 +45,63 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username,
-          password,
-          full_name: fullName,
-        }),
+      // 1. Kiểm tra cấu hình Firebase
+      if (!auth || !db) {
+        throw new Error("Firebase chưa được cấu hình. Vui lòng kiểm tra file .env.local và cấu hình Firebase.");
+      }
+
+      // 2. Kiểm tra xem username đã tồn tại trong Firestore chưa
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("username", "==", username));
+
+      // Note: Cần quyền đọc Firestore (Security Rules)
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        setError("Tên đăng nhập đã tồn tại");
+        setLoading(false);
+        return;
+      }
+
+      // 3. Hash password (client-side) để lưu trữ an toàn hơn
+      const hashedPassword = await hashPassword(password);
+
+      // 4. Sign in Anonymously để tạo UID
+      const userCredential = await signInAnonymously(auth);
+      const user = userCredential.user;
+
+      // 5. Lưu thông tin user vào Firestore
+      // Dùng UID làm document ID
+      await setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        username,
+        password: hashedPassword,
+        full_name: fullName,
+        role: "user",
+        createdAt: new Date().toISOString()
       });
 
-      const data = await res.json();
+      // 6. Sign out (để user có thể login lại chính thức ở trang login)
+      await signOut(auth);
 
-      if (data.success) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.replace("/login");
-        }, 2000);
-      } else {
-        setError(data.message || "Tên đăng nhập đã tồn tại");
-        setLoading(false);
+      setSuccess(true);
+      setTimeout(() => {
+        router.replace("/login");
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      let msg = "Lỗi kết nối. Vui lòng thử lại.";
+
+      if (err.code === 'auth/operation-not-allowed') {
+        msg = "Vui lòng bật Anonymous Auth trong Firebase Console.";
+      } else if (err.code === 'permission-denied') {
+        msg = "Lỗi quyền truy cập: Kiểm tra Firestore Security Rules.";
+      } else if (err.message) {
+        msg = err.message;
       }
-    } catch (err) {
-      setError("Lỗi kết nối. Vui lòng thử lại.");
+
+      setError(msg);
       setLoading(false);
     }
   };
