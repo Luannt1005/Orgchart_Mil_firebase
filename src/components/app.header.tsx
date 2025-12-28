@@ -15,7 +15,7 @@ function AppHeader() {
   const [search, setSearch] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ username: string; full_name: string; role?: string; uid?: string } | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,11 @@ function AppHeader() {
   useEffect(() => {
     // Get user info from localStorage or session
     const storedUser = localStorage.getItem("user");
-    
+
+    // Public pages that don't require user data
+    const publicPages = ["/login", "/signup"];
+    const isPublicPage = publicPages.includes(pathname);
+
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
@@ -34,18 +38,18 @@ function AppHeader() {
       } catch (e) {
         console.error("Failed to parse user data", e);
         localStorage.removeItem("user");
-        // Redirect to login if stored data is invalid
-        if (pathname !== "/login") {
+        // Redirect to login if stored data is invalid (but not from public pages)
+        if (!isPublicPage) {
           router.push("/login");
         }
       }
     } else {
-      // No user data found, redirect to login
-      if (pathname !== "/login") {
+      // No user data found, redirect to login (but not from public pages)
+      if (!isPublicPage) {
         router.push("/login");
       }
     }
-    
+
     setIsLoading(false);
   }, [pathname, router]);
 
@@ -66,13 +70,28 @@ function AppHeader() {
     };
   }, [isUserMenuOpen]);
 
-  /**
+  /*
    * Đăng xuất
    */
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      const { auth } = await import("@/lib/firebase");
+      const { signOut } = await import("firebase/auth");
+      await signOut(auth);
+
+      // Delete auth cookie
+      await fetch("/api/logout", { method: "POST" });
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Clear user data from local storage
     localStorage.removeItem("user");
+
     setUser(null);
     setIsUserMenuOpen(false);
+
     window.location.href = "/login";
   };
 
@@ -80,7 +99,7 @@ function AppHeader() {
    * Filter theo search
    */
   const filteredGroups = groups.filter(name =>
-    name.toLowerCase().includes(search.toLowerCase())
+    name?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -107,12 +126,12 @@ function AppHeader() {
               Sơ đồ Tổ chức
             </Link>
             <Link
-              href="/Global_Orgchart"
-              className={`mwk-nav-link ${pathname === "/Global_Orgchart" ? "active" : ""}`}
+              href="/Import_HR_Data"
+              className={`mwk-nav-link ${pathname === "/Import_HR_Data" ? "active" : ""}`}
             >
-              Dashboard HR
+              Import Data HR
             </Link>
-             <Link
+            <Link
               href="/SheetManager"
               className={`mwk-nav-link ${pathname === "/SheetManager" ? "active" : ""}`}
             >
@@ -123,76 +142,8 @@ function AppHeader() {
               href="/Customize"
               className={`mwk-nav-link ${pathname === "/Customize" ? "active" : ""}`}
             >
-              Tùy chỉnh
+              Orgchart tùy chỉnh
             </Link>
-
-            {/* Dropdown */}
-            <div className="mwk-dropdown">
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="mwk-nav-link dropdown-toggle"
-              >
-                Departments
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                  <path d="M6 9L1 4h10z"></path>
-                </svg>
-              </button>
-
-              {/* Dropdown Menu */}
-              <div
-                className={`mwk-dropdown-menu ${isDropdownOpen ? "show" : ""}`}
-                onMouseLeave={() => setIsDropdownOpen(false)}
-              >
-                {/* Search Box */}
-                <div className="mwk-dropdown-search">
-                  <input
-                    type="text"
-                    className="mwk-dropdown-input"
-                    placeholder="Tìm phòng ban..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </div>
-
-                {/* List with Scroll */}
-                <div className="mwk-dropdown-list">
-                  {loading && (
-                    <div className="mwk-dropdown-item disabled">
-                      Loading...
-                    </div>
-                  )}
-
-                  {!loading && filteredGroups.length === 0 && (
-                    <div className="mwk-dropdown-item disabled">
-                      No result
-                    </div>
-                  )}
-
-                  {!loading &&
-                    filteredGroups.map(name => (
-                      <Link
-                        key={name}
-                        href={name
-                      ? `/Orgchart?group=${encodeURIComponent(name)}`
-                      : "/Orgchart"}
-                        className="mwk-dropdown-item"
-                      >
-                        {name}
-                      </Link>
-                    ))}
-                </div>
-
-                {/* Footer */}
-                <div className="mwk-dropdown-footer">
-                  <Link
-                        href={"/Orgchart"}
-                        className="mwk-dropdown-item"
-                      >
-                        Xem tất cả phòng ban
-                      </Link>
-                </div>
-              </div>
-            </div>
           </nav>
 
           {/* User Profile - Right */}
@@ -201,13 +152,13 @@ function AppHeader() {
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="mwk-user-button"
-                title={user.email || ""}
+                title={user.username || ""}
               >
                 <div className="mwk-user-avatar">
-                  {user.name && user.name.length > 0 ? user.name.charAt(0).toUpperCase() : "U"}
+                  {user.full_name && user.full_name.length > 0 ? user.full_name.charAt(0).toUpperCase() : user.username?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="mwk-user-info">
-                  <div className="mwk-user-name">{user.name && user.name.length > 0 ? user.name : "User"}</div>
+                  <div className="mwk-user-name truncate">{user.full_name || user.username || "User"}</div>
                 </div>
               </button>
 
@@ -215,11 +166,11 @@ function AppHeader() {
               <div className={`mwk-user-dropdown ${isUserMenuOpen ? "show" : ""}`}>
                 <div className="mwk-user-dropdown-header">
                   <div className="mwk-user-dropdown-avatar">
-                    {user.name && user.name.length > 0 ? user.name.charAt(0).toUpperCase() : "U"}
+                    {user.full_name && user.full_name.length > 0 ? user.full_name.charAt(0).toUpperCase() : user.username?.charAt(0).toUpperCase() || "U"}
                   </div>
                   <div className="mwk-user-dropdown-info">
-                    <div className="mwk-user-dropdown-name">{user.name && user.name.length > 0 ? user.name : "User"}</div>
-                    <div className="mwk-user-dropdown-email">{user.email || ""}</div>
+                    <div className="mwk-user-dropdown-name">{user.full_name || user.username || "User"}</div>
+                    <div className="mwk-user-dropdown-email">@{user.username}</div>
                   </div>
                 </div>
                 <div className="mwk-user-dropdown-divider"></div>

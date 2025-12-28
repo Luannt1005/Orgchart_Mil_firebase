@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import "./login.css";
 
+// Firebase imports
+import { auth, db } from "@/lib/firebase";
+import { signInAnonymously } from "firebase/auth";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { verifyPassword } from "@/lib/password";
+
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,32 +25,81 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/login", {
+      // 1. Kiểm tra cấu hình Firebase
+      if (!auth || !db) {
+        throw new Error("Firebase chưa được cấu hình. Vui lòng kiểm tra file .env.local");
+      }
+
+      // 2. Tìm user trong Firestore bằng username
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("username", "==", username));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        setError("Sai tài khoản hoặc mật khẩu");
+        setLoading(false);
+        return;
+      }
+
+      // 3. Lấy thông tin user đầu tiên tìm được
+      const userDoc = querySnapshot.docs[0];
+      const userData = userDoc.data();
+
+      // 4. Verify password với bcrypt
+      const isPasswordValid = await verifyPassword(password, userData.password);
+      if (!isPasswordValid) {
+        setError("Sai tài khoản hoặc mật khẩu");
+        setLoading(false);
+        return;
+      }
+
+      // 5. Sign in anonymously để tạo Firebase session
+      await signInAnonymously(auth);
+
+      // 6. Tạo user info object
+      const userInfo = {
+        id: userDoc.id,
+        username: userData.username,
+        full_name: userData.full_name || userData.username,
+        role: userData.role || "user"
+      };
+
+      const sessionRes = await fetch("/api/create-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ user: userInfo })
       });
 
-      const data = await res.json();
+      const sessionData = await sessionRes.json();
 
-      if (data.success) {
-        // ✅ Show success animation
-        setSuccess(true);
-        
-        // Set cookie for middleware
-        document.cookie = "auth=true; path=/; max-age=86400";
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        // Redirect after animation
-        setTimeout(() => {
-          router.replace("/");
-        }, 2000);
-      } else {
-        setError(data.message || "Sai tài khoản hoặc mật khẩu");
-        setLoading(false);
+      if (!sessionData.success) {
+        throw new Error("Failed to create session");
       }
-    } catch (err) {
-      setError("Lỗi kết nối. Vui lòng thử lại.");
+
+      // 8. Lưu thông tin user vào localStorage (cho UI)
+      localStorage.setItem("user", JSON.stringify(userInfo));
+
+      // ✅ Show success animation
+      setSuccess(true);
+
+      // Redirect after animation
+      setTimeout(() => {
+        router.replace("/");
+      }, 2000);
+
+    } catch (err: any) {
+      console.error("Login error:", err);
+      let msg = "Lỗi kết nối. Vui lòng thử lại.";
+
+      if (err.code === 'auth/operation-not-allowed') {
+        msg = "Vui lòng bật Anonymous Auth trong Firebase Console.";
+      } else if (err.code === 'permission-denied') {
+        msg = "Lỗi quyền truy cập: Kiểm tra Firestore Security Rules.";
+      } else if (err.message) {
+        msg = err.message;
+      }
+
+      setError(msg);
       setLoading(false);
     }
   };

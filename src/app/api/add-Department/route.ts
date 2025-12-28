@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import axios from "axios";
-import { NEXT_PUBLIC_GAS_ADD_DEPT_URL } from "@/constant/api";
+import { db } from "@/lib/firebase";
+import { collection, doc, writeBatch } from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
@@ -8,7 +8,10 @@ export async function POST(req: Request) {
 
     // Validate required fields
     if (!body.name || !body.pid) {
-      console.warn("Missing required fields in add-Department:", { name: !!body.name, pid: !!body.pid });
+      console.warn("Missing required fields in add-Department:", {
+        name: !!body.name,
+        pid: !!body.pid,
+      });
       return NextResponse.json(
         {
           success: false,
@@ -18,31 +21,43 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get GAS URL from environment
-    const gasUrl = NEXT_PUBLIC_GAS_ADD_DEPT_URL;
-    if (!gasUrl) {
-      console.error("GAS_ADD_DEPT_URL is not configured");
-      throw new Error("Add-Department GAS URL is not configured");
-    }
-
-    console.log("Adding department via GAS: ", { name: body.name, pid: body.pid, url: gasUrl });
-
-    // Send to Google Apps Script
-    const res = await axios.post(gasUrl, body, {
-      timeout: 15000,
-      headers: {
-        "Content-Type": "application/json",
-      },
+    console.log("Adding department to Firebase: ", {
+      name: body.name,
+      pid: body.pid,
     });
 
-    const result = res.data || {};
+    // Create department object
+    const departmentData = {
+      id: body.id || `dept:${body.name}:${body.pid}`,
+      pid: body.pid,
+      stpid: null,
+      name: body.name,
+      title: "Department",
+      image: null,
+      tags: JSON.stringify(["group"]),
+      orig_pid: body.pid,
+      dept: body.name,
+      BU: null,
+      type: "group",
+      location: null,
+      description: body.description || `Department under manager ${body.pid}`,
+      createdAt: new Date(),
+    };
 
-    console.log("Add-Department response:", result);
+    // Save to Firestore
+    const orgchartRef = collection(db, "Orgchart_data");
+    const docRef = doc(orgchartRef, departmentData.id);
+
+    const batch = writeBatch(db);
+    batch.set(docRef, departmentData);
+    await batch.commit();
+
+    console.log("Department added successfully:", departmentData.id);
 
     return NextResponse.json(
       {
         success: true,
-        data: result,
+        data: departmentData,
         timestamp: new Date().toISOString(),
       },
       { status: 200 }

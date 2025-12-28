@@ -16,12 +16,12 @@
   z-index: 999;
   background: var(--mwk-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 /* Container */
 .mwk-container {
-  max-width: 1400px;
+  /* max-width: 1400px; */
   margin: 0 auto;
   padding: 0 20px;
   display: flex;

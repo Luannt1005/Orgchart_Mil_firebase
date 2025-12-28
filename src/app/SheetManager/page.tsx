@@ -4,12 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import styles from "./sheet.module.css";
 
 interface SheetRow {
-  _id: number;
+  id: string;
   [key: string]: any;
 }
 
 interface EditingCell {
-  rowId: number;
+  rowId: string;
   header: string;
 }
 
@@ -22,35 +22,47 @@ const VISIBLE_COLUMNS = [
   "Dept",
   "Line Manager",
   "Cost Center",
-  "Joining Date",
-  "FullName",
+  "Joining\r\n Date",
+  "FullName ",
   "Job Title",
   "DL/IDL/Staff",
-  "Employee Type",
+  "Employee\r\n Type",
   "Status",
   "Location",
-  "Last Working Day",
+  "Last Working\r\nDay",
   "Employee Category"
 ];
 
 // Các cột là ngày tháng
-const DATE_COLUMNS = ["Joining Date", "Last Working Day"];
+const DATE_COLUMNS = ["Joining\n Date", "Last Working Day"];
 
 // Các cột cần filter
 const FILTER_COLUMNS = [
   "Emp ID",
   "Dept",
   "BU Org 3",
-  "FullName",
+  "FullName ",
   "DL/IDL/Staff"
 ];
+
+// Normalize field name (remove invalid characters for Firestore)
+const normalizeFieldName = (fieldName: string): string => {
+  return fieldName.replace(/[~*\/\[\]]/g, '_');
+};
+
+// Reverse normalize (để hiển thị lại)
+const denormalizeFieldName = (fieldName: string): string => {
+  const mapping: { [key: string]: string } = {
+    'DL_IDL_Staff': 'DL/IDL/Staff',
+  };
+  return mapping[fieldName] || fieldName;
+};
 
 // Hàm format ngày từ ISO sang DD/MM/YYYY
 const formatDate = (value: any): string => {
   if (!value) return "";
   
   try {
-    // Nếu là ISO format (2024-01-02T08:00:00.000Z)
     if (typeof value === 'string' && value.includes('T')) {
       const date = new Date(value);
       const day = String(date.getDate()).padStart(2, '0');
@@ -59,7 +71,6 @@ const formatDate = (value: any): string => {
       return `${day}/${month}/${year}`;
     }
     
-    // Nếu là DD/MM/YYYY rồi thì giữ nguyên
     if (typeof value === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
       return value;
     }
@@ -75,12 +86,10 @@ const formatDateToISO = (value: string): string => {
   if (!value) return "";
   
   try {
-    // Nếu đã là ISO thì giữ nguyên
     if (value.includes('T')) {
       return value;
     }
     
-    // Nếu là DD/MM/YYYY thì convert sang ISO
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
       const [day, month, year] = value.split('/');
       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -100,13 +109,16 @@ const SheetManager = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 100;
+
   // Filter states
   const [filters, setFilters] = useState<{ [key: string]: string }>({});
-  const [searchText, setSearchText] = useState("");
 
   // Edit states
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [modifiedRows, setModifiedRows] = useState<Set<number>>(new Set());
+  const [modifiedRows, setModifiedRows] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   // Load data
@@ -114,13 +126,15 @@ const SheetManager = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/sheet?action=get");
+      const response = await fetch("/api/sheet");
       const result = await response.json();
 
       if (result.success) {
-        // Lọc chỉ các cột cần hiển thị
+        // Log tất cả headers để xem tên thực tế
+        console.log("All available headers:", result.headers);
+        
         const visibleHeaders = result.headers.filter((h: string) =>
-          VISIBLE_COLUMNS.includes(h)
+          VISIBLE_COLUMNS.includes(h) || VISIBLE_COLUMNS.includes(denormalizeFieldName(h))
         );
         setHeaders(visibleHeaders);
         setRows(result.data || []);
@@ -145,34 +159,37 @@ const SheetManager = () => {
       ...prev,
       [header]: value,
     }));
+    setCurrentPage(1);
   };
 
   // Filter rows
   const filteredRows = rows.filter((row) => {
-    // Column filters
     for (const [header, filterValue] of Object.entries(filters)) {
       if (filterValue && String(row[header]).toLowerCase() !== filterValue.toLowerCase()) {
         return false;
       }
     }
-
     return true;
   });
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRows = filteredRows.slice(startIndex, endIndex);
+
   // Handle cell click to edit
-  const handleCellClick = (rowId: number, header: string) => {
+  const handleCellClick = (rowId: string, header: string) => {
     setEditingCell({ rowId, header });
   };
 
   // Handle cell value change
-  const handleCellChange = (rowId: number, header: string, value: string) => {
+  const handleCellChange = (rowId: string, header: string, value: string) => {
     setRows((prev) =>
       prev.map((row) =>
-        row._id === rowId ? { ...row, [header]: value } : row
+        row.id === rowId ? { ...row, [header]: value } : row
       )
     );
-
-    // Mark row as modified
     setModifiedRows((prev) => new Set([...prev, rowId]));
   };
 
@@ -190,51 +207,6 @@ const SheetManager = () => {
     }
   };
 
-  // Call Sync API (qua Next.js API route để tránh CORS)
-  const callSyncApi = async () => {
-    try {
-      console.log("Calling sync API via Next.js route...");
-      const response = await fetch("/api/sheet", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-      });
-      const result = await response.json();
-      console.log("Sync API result:", result);
-      return result.success;
-    } catch (err) {
-      console.error("Sync API error:", err);
-      return false;
-    }
-  };
-
-  // Delete row
-  const handleDelete = async (rowId: number) => {
-    if (!confirm("Are you sure?")) return;
-
-    try {
-      const response = await fetch("/api/sheet", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "delete",
-          rowId: rowId - 1,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        await loadData();
-        setSuccessMessage("✅ Deleted successfully");
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert("❌ " + (result.error || "Error"));
-      }
-    } catch (err) {
-      alert("❌ " + (err instanceof Error ? err.message : "Error"));
-    }
-  };
-
   // Save all modified rows
   const handleSaveAll = async () => {
     if (modifiedRows.size === 0) {
@@ -248,30 +220,28 @@ const SheetManager = () => {
 
     try {
       for (const rowId of modifiedRows) {
-        const row = rows.find((r) => r._id === rowId);
+        const row = rows.find((r) => r.id === rowId);
         if (!row) continue;
 
-        // Loại bỏ _id, chỉ gửi data từ headers
         const dataToSave: { [key: string]: any } = {};
         headers.forEach((header) => {
           let value = row[header] || "";
           
-          // Nếu là cột ngày tháng, convert từ DD/MM/YYYY sang ISO
           if (DATE_COLUMNS.includes(header)) {
             value = formatDateToISO(value);
           }
           
-          dataToSave[header] = value;
+          const normalizedHeader = normalizeFieldName(header);
+          dataToSave[normalizedHeader] = value;
         });
 
         console.log("Saving row:", { rowId, data: dataToSave });
 
         const response = await fetch("/api/sheet", {
-          method: "POST",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "update",
-            rowId: rowId - 1,
+            id: rowId,
             data: dataToSave,
           }),
         });
@@ -289,17 +259,27 @@ const SheetManager = () => {
 
       if (errorCount === 0) {
         setModifiedRows(new Set());
-        setSuccessMessage(`✅ Saving ${successCount} row(s)...`);
         
-        // Call sync API
-        const syncSuccess = await callSyncApi();
-        
-        if (syncSuccess) {
-          setSuccessMessage(`✅ Saved ${successCount} row(s) & synced successfully`);
-        } else {
-          setSuccessMessage(`✅ Saved ${successCount} row(s) (sync had an issue)`);
+        // Sync to Orgchart_data
+        try {
+          console.log("Syncing to Orgchart_data...");
+          const syncResponse = await fetch("/api/sync-orgchart", {
+            method: "POST"
+          });
+          const syncResult = await syncResponse.json();
+          console.log("Sync result:", syncResult);
+          
+          if (syncResult.success) {
+            setSuccessMessage(`✅ Saved ${successCount} row(s) and synced to Orgchart`);
+          } else {
+            setSuccessMessage(`✅ Saved ${successCount} row(s) but sync failed`);
+          }
+        } catch (syncErr) {
+          console.error("Sync error:", syncErr);
+          setSuccessMessage(`✅ Saved ${successCount} row(s) but sync failed`);
         }
         
+        await loadData();
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         alert(`⚠️ Saved ${successCount} rows, ${errorCount} failed`);
@@ -344,6 +324,27 @@ const SheetManager = () => {
     } catch (err) {
       console.error("Add error:", err);
       alert("❌ " + (err instanceof Error ? err.message : "Error"));
+    }
+  };
+
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setFilters({});
+    setCurrentPage(1);
+  };
+
+  // Handle pagination
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const handleGoToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
   };
 
@@ -396,10 +397,7 @@ const SheetManager = () => {
         </div>
 
         <button
-          onClick={() => {
-            setFilters({});
-            setSearchText("");
-          }}
+          onClick={handleClearFilters}
           className={styles.btnReset}
         >
           🔄 Clear Filters
@@ -409,8 +407,9 @@ const SheetManager = () => {
       {/* TOOLBAR */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarInfo}>
-          Showing <strong>{filteredRows.length}</strong> of{" "}
-          <strong>{rows.length}</strong> rows
+          Showing <strong>{paginatedRows.length}</strong> of{" "}
+          <strong>{filteredRows.length}</strong> rows (Page{" "}
+          <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong>)
           {modifiedRows.size > 0 && (
             <span style={{ marginLeft: "20px", color: "#f59e0b" }}>
               • <strong>{modifiedRows.size}</strong> unsaved changes
@@ -433,7 +432,6 @@ const SheetManager = () => {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: "80px" }}>Action</th>
               {headers.map((header) => (
                 <th key={header} style={{ minWidth: "150px" }}>
                   {header}
@@ -442,33 +440,24 @@ const SheetManager = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row) => (
+            {paginatedRows.map((row) => (
               <tr
-                key={row._id}
-                className={modifiedRows.has(row._id) ? styles.modified : ""}
+                key={row.id}
+                className={modifiedRows.has(row.id) ? styles.modified : ""}
               >
-                <td className={styles.actionCell}>
-                  <button
-                    onClick={() => handleDelete(row._id)}
-                    className={styles.btnDelete}
-                    title="Delete"
-                  >
-                    🗑️
-                  </button>
-                </td>
                 {headers.map((header) => (
                   <td
-                    key={`${row._id}-${header}`}
-                    onClick={() => handleCellClick(row._id, header)}
+                    key={`${row.id}-${header}`}
+                    onClick={() => handleCellClick(row.id, header)}
                   >
-                    {editingCell?.rowId === row._id &&
+                    {editingCell?.rowId === row.id &&
                     editingCell?.header === header ? (
                       <input
                         autoFocus
                         type="text"
                         value={String(row[header] || "")}
                         onChange={(e) =>
-                          handleCellChange(row._id, header, e.target.value)
+                          handleCellChange(row.id, header, e.target.value)
                         }
                         onBlur={handleCellBlur}
                         onKeyDown={handleKeyDown}
@@ -489,7 +478,28 @@ const SheetManager = () => {
         </table>
       </div>
 
+      {/* PAGINATION */}
       <div className={styles.pagination}>
+        <button
+          onClick={handlePreviousPage}
+          disabled={currentPage === 1}
+          className={styles.btnPagination}
+        >
+          ← Previous
+        </button>
+        <span style={{ margin: "0 15px", fontWeight: "bold" }}>
+          Page {currentPage} of {totalPages || 1}
+        </span>
+        <button
+          onClick={handleNextPage}
+          disabled={currentPage === totalPages || totalPages === 0}
+          className={styles.btnPagination}
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className={styles.paginationInfo}>
         💡 Click on any cell to edit. Changes are marked in yellow until saved.
       </div>
     </div>

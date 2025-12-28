@@ -34,7 +34,7 @@ export function useOrgData(options?: UseOrgDataOptions) {
     revalidateOnFocus: false, // Don't revalidate when tab regains focus
     revalidateOnReconnect: false, // Don't revalidate on reconnect
     revalidateIfStale: false, // Don't auto-revalidate if stale
-    revalidateOnMount: false, // Use cached data when component mounts (critical!)
+    revalidateOnMount: true, // Fetch data if not in cache on mount
     shouldRetryOnError: false, // Don't retry on error automatically
     focusThrottleInterval: FOCUS_THROTTLE_INTERVAL,
     dedupingInterval: DEDUPING_INTERVAL, // Deduplicate requests within 5 minutes
@@ -73,27 +73,16 @@ export function useOrgData(options?: UseOrgDataOptions) {
     swrConfig
   );
 
+
   // Extract nodes array from response
   const nodes = data?.data ?? [];
 
-  // Check if data is empty AND we haven't attempted revalidate yet
-  // Only revalidate ONCE if cache is completely empty
-  if (!isLoading && nodes.length === 0 && !revalidateAttemptedRef.current) {
-    console.warn('⚠️ Data is empty, attempting single revalidation...');
-    revalidateAttemptedRef.current = true;
-    // Use setTimeout to prevent synchronous state update issues
-    setTimeout(() => {
-      mutate(undefined, { revalidate: true });
-    }, 0);
-  }
-
-  // Extract unique group names
+  // Extract unique group names (dept)
   const groups = Array.from(
     new Set(
       nodes
-        .filter(node => node.tags?.includes('group'))
-        .map(node => node.name)
-        .filter(Boolean)
+        .map(node => node.dept)
+        .filter((d) => typeof d === "string" && d.trim() !== "")
     )
   ).sort();
 
@@ -135,15 +124,24 @@ function filterNodesByGroup(
   nodes: OrgNode[],
   groupName: string
 ): OrgNode[] {
-  const targetNode = nodes.find(
-    n => n.name === groupName && n.tags?.includes('group')
+  // Ưu tiên tìm node group theo dept
+  let targetNode = nodes.find(
+    n => n.dept === groupName && (n.type === "group" || (Array.isArray(n.tags) && n.tags.includes("group")))
   );
-
+  // Nếu không có, fallback về logic cũ
+  if (!targetNode) {
+    targetNode = nodes.find(
+      n => n.name === groupName && Array.isArray(n.tags) && n.tags.includes('group')
+    );
+  }
+  // Nếu vẫn không có, thử tìm node đầu tiên có dept === groupName
+  if (!targetNode) {
+    targetNode = nodes.find(n => n.dept === groupName);
+  }
   if (!targetNode) return [];
 
   const filtered: OrgNode[] = [];
   const visited = new Set<string | number>();
-
   const allNodes = nodes;
 
   function dfs(nodeId: string | number) {
@@ -154,7 +152,7 @@ function filterNodesByGroup(
     if (current) filtered.push(current);
 
     allNodes.forEach((n: any) => {
-      // 🔹 GROUP → GROUP
+      // GROUP → GROUP
       if (
         n.pid === nodeId &&
         Array.isArray(n.tags) &&
@@ -162,8 +160,7 @@ function filterNodesByGroup(
       ) {
         dfs(n.id);
       }
-
-      // 🔹 GROUP → EMP
+      // GROUP → EMP
       if (
         n.pid === nodeId &&
         Array.isArray(n.tags) &&
@@ -171,8 +168,7 @@ function filterNodesByGroup(
       ) {
         dfs(n.id);
       }
-
-      // 🔹 EMP → EMP
+      // EMP → EMP
       if (n.stpid === nodeId) {
         dfs(n.id);
       }

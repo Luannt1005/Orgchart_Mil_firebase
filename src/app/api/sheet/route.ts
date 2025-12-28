@@ -1,17 +1,67 @@
 import { NextResponse } from "next/server";
-
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzo9izXP8PAiLlg4YTuYwld_PGr4WG-KJMoT12LDLpImLbLGL8V3Nz3nmM_Yr2izp90bA/exec";
-const SYNC_URL = "https://script.google.com/macros/s/AKfycbw1cil3hwmJU0BaHRpLr-xzzBSfSaxDh0eMWmVd73KMbeF8CmfMex658sTJZJBHXWKF9w/exec";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  query,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  addDoc,
+} from "firebase/firestore";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const action = searchParams.get("action") || "get";
+    const id = searchParams.get("id");
 
-    const response = await fetch(`${GAS_URL}?action=${action}`);
-    const data = await response.json();
+    console.log("GET /api/sheet - id:", id);
 
-    return NextResponse.json(data, { status: 200 });
+    // Nếu có ID cụ thể, lấy 1 employee
+    if (id) {
+      const docRef = doc(db, "employees", id);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        return NextResponse.json(
+          { success: false, error: "Employee not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: { id: docSnap.id, ...docSnap.data() }
+      });
+    }
+
+    // Lấy tất cả employees
+    const employeesRef = collection(db, "employees");
+    const q = query(employeesRef);
+    const querySnapshot = await getDocs(q);
+
+    const employees: any[] = [];
+    const headersSet = new Set<string>();
+
+    querySnapshot.forEach((doc) => {
+      const data = { id: doc.id, ...doc.data() };
+      employees.push(data);
+
+      // Collect all headers
+      Object.keys(data).forEach((key) => headersSet.add(key));
+    });
+
+    const headers = Array.from(headersSet);
+
+    console.log("Found employees:", employees.length);
+
+    return NextResponse.json({
+      success: true,
+      total: employees.length,
+      headers: headers,
+      data: employees
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("GET /api/sheet error:", message);
@@ -25,45 +75,36 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, rowId, data } = body;
+    const { action, data } = body;
 
-    console.log("POST /api/sheet - action:", action, "rowId:", rowId, "data:", data);
+    console.log("POST /api/sheet - action:", action);
 
     if (!action || !data) {
-      console.error("Missing action or data", { action, data });
       return NextResponse.json(
         { success: false, error: "Missing action or data" },
         { status: 400 }
       );
     }
 
-    // Cách 1: Gửi qua URL parameter + body
-    const payload = {
-      rowId: rowId,
-      data: data,
-    };
+    if (action === "add") {
+      const employeesRef = collection(db, "employees");
+      const newDoc = await addDoc(employeesRef, {
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
 
-    console.log("Sending to GAS with URL parameter action=" + action);
-    console.log("Payload:", JSON.stringify(payload));
-
-    const response = await fetch(`${GAS_URL}?action=${action}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const responseText = await response.text();
-    console.log("GAS response:", responseText);
-
-    let result = {};
-    try {
-      result = JSON.parse(responseText);
-    } catch (e) {
-      console.error("Failed to parse GAS response:", responseText);
-      result = { success: false, error: "Invalid response from GAS" };
+      return NextResponse.json({
+        success: true,
+        id: newDoc.id,
+        message: "Employee added successfully"
+      });
     }
 
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(
+      { success: false, error: "Invalid action" },
+      { status: 400 }
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("POST /api/sheet error:", message);
@@ -76,23 +117,62 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    console.log("Calling sync API...");
+    const body = await req.json();
+    const { id, data } = body;
 
-    const response = await fetch(SYNC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    console.log("PUT /api/sheet - id:", id);
+
+    if (!id || !data) {
+      return NextResponse.json(
+        { success: false, error: "Missing id or data" },
+        { status: 400 }
+      );
+    }
+
+    const docRef = doc(db, "employees", id);
+    await updateDoc(docRef, {
+      ...data,
+      updatedAt: new Date()
     });
 
-    const result = await response.json();
-    console.log("Sync API response:", result);
-
-    return NextResponse.json(
-      { success: true, data: result },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      success: true,
+      message: "Employee updated successfully"
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Sync API error:", message);
+    console.error("PUT /api/sheet error:", message);
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    console.log("DELETE /api/sheet - id:", id);
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: "Missing id" },
+        { status: 400 }
+      );
+    }
+
+    const docRef = doc(db, "employees", id);
+    await deleteDoc(docRef);
+
+    return NextResponse.json({
+      success: true,
+      message: "Employee deleted successfully"
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("DELETE /api/sheet error:", message);
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 }

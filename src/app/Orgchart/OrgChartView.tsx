@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import OrgChart from "@balkangraph/orgchart.js";
-import { useFilteredOrgData, useRevalidateOrgData } from "@/hooks/useOrgData";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, query, writeBatch, doc } from "firebase/firestore";
 import { apiClient } from "@/lib/api-client";
 import { UPDATE_NODE_API, REMOVE_NODE_API, ADD_DEPARTMENT_API } from "@/constant/api";
 import { patchOrgChartTemplates } from "./OrgChartTemplates";
@@ -13,64 +14,138 @@ interface OrgChartProps {
   selectedGroup?: string;
 }
 
+interface OrgChartNode {
+  id: string;
+  pid: string | null;
+  stpid: string | null;
+  name: string;
+  title: string;
+  image: string | null;
+  tags: string[];
+  orig_pid: string | null;
+  dept: string | null;
+  BU: string | null;
+  type: string;
+  location: string | null;
+  description: string;
+  joiningDate: string;
+}
+
 export default function OrgChartView({ selectedGroup }: OrgChartProps) {
   const treeRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
+  const [nodes, setNodes] = useState<OrgChartNode[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Use cached global data instead of fetching
-  const { nodes, loading } = useFilteredOrgData(selectedGroup);
-  const { revalidate } = useRevalidateOrgData();
+  // Load data from API
+  const loadOrgchartData = async () => {
+    setLoading(true);
+    try {
+      const url = selectedGroup && selectedGroup !== "all"
+        ? `/api/orgchart?dept=${encodeURIComponent(selectedGroup)}`
+        : "/api/orgchart";
 
-//    Listen for Ctrl key
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (!chartRef.current || chartRef.current.enableDragDrop) return;
-            chartRef.current.config.enableDragDrop = true;
-            // chartRef.current.draw();
-        };
-        const handleKeyUp = (e: KeyboardEvent) => {
-            if (!chartRef.current) return;
-            chartRef.current.config.enableDragDrop = false;
-            // chartRef.current.draw();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, []);
+      const response = await fetch(url);
+      const result = await response.json();
 
-//   Update chart dragDrop when state changes
-//   useEffect(() => {
-//     if (chartRef.current) {
-//       console.log(`📊 Chart dragDrop updated: ${enableDragDrop ? "ENABLED" : "DISABLED"}`);
-//       chartRef.current.config.enableDragDrop = enableDragDrop;
-//       chartRef.current.draw();
-//     }
-//   }, [enableDragDrop]);
+      if (result.success) {
+        const data = result.data.map((item: any) => ({
+          id: item.id,
+          pid: item.pid || null,
+          stpid: item.stpid || null,
+          name: item.name || "",
+          title: item.title || "",
+          image: item.image || null,
+          tags: Array.isArray(item.tags)
+            ? item.tags
+            : typeof item.tags === 'string'
+              ? JSON.parse(item.tags || '[]')
+              : [],
+          orig_pid: item.orig_pid || null,
+          dept: item.dept || null,
+          BU: item.BU || null,
+          type: item.type || "",
+          location: item.location || null,
+          description: item.description || "",
+          joiningDate: item.joiningDate || ""
+        } as OrgChartNode));
+
+        setNodes(data);
+      } else {
+        console.error("Failed to load orgchart data:", result.error);
+      }
+    } catch (error) {
+      console.error("Failed to load orgchart data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Revalidate data
+  const revalidate = async () => {
+    await loadOrgchartData();
+  };
+
+  useEffect(() => {
+    loadOrgchartData();
+  }, [selectedGroup]);
+
+  // Listen for Ctrl key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!chartRef.current || chartRef.current.enableDragDrop) return;
+      chartRef.current.config.enableDragDrop = true;
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!chartRef.current) return;
+      chartRef.current.config.enableDragDrop = false;
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const addDepartment = async (nodeId: string) => {
     const chart = chartRef.current;
     if (!chart) return;
 
-     const node = chart.getNode(nodeId);
-    
     try {
+      const newId = OrgChart.randomId();
       const data = {
-        id: OrgChart.randomId(),
+        id: newId,
         pid: nodeId,
+        stpid: null,
         name: "New Department",
+        title: "Department",
+        image: null,
         tags: ["group"],
+        orig_pid: nodeId,
+        dept: null,
+        BU: null,
+        type: "group",
+        location: null,
+        description: "",
+        joiningDate: ""
       };
 
-      console.log("Adding department:", data);
       chart.addNode(data);
-      const response = await apiClient.post(ADD_DEPARTMENT_API, data);
-      console.log("Add department response:", response);
-      
-      // Revalidate cached data after mutation
-      await revalidate();
+
+      // Save via API
+      const response = await fetch("/api/orgchart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        await revalidate();
+      } else {
+        console.error("Failed to add department:", result.error);
+      }
     } catch (error) {
       console.error("Failed to add department:", error);
       alert("Failed to add department. Check console for details.");
@@ -85,8 +160,8 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
     const chartNodes = nodes.map((n: any) => ({
       ...n,
-      tags: Array.isArray(n.tags) ? n.tags : n.tags ? [n.tags] : [],
-      img: n.img || n.photo || "",
+      tags: Array.isArray(n.tags) ? n.tags : [],
+      img: n.image || "",
     }));
 
     const chart = new OrgChart(el, {
@@ -126,6 +201,9 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
         group: {
           template: "group",
         },
+        Emp_probation: {
+          template: "big_v2",
+        },
         filter: {
           template: "dot",
         },
@@ -149,20 +227,33 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
         try {
           const payload = {
             id: node.id,
-            pid: node.pid ?? "",
-            stpid: node.stpid ?? "",
+            pid: node.pid ?? null,
+            stpid: node.stpid ?? null,
             name: node.name ?? "",
             title: node.title ?? "",
-            photo: node.photo ?? "",
+            image: node.img ?? null,
             tags: node.tags ?? [],
-            orig_pid: node.orig_pid ?? "",
-            dept: node.dept ?? "",
-            BU: node.BU ?? "",
+            orig_pid: node.orig_pid ?? null,
+            dept: node.dept ?? null,
+            BU: node.BU ?? null,
             type: node.type ?? "",
+            location: node.location ?? null,
+            description: node.description ?? "",
+            joiningDate: node.joiningDate ?? ""
           };
 
-          await apiClient.post(UPDATE_NODE_API, payload);
-          await revalidate();
+          const response = await fetch("/api/orgchart", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            await revalidate();
+          } else {
+            console.error("Failed to update node:", result.error);
+          }
         } catch (err) {
           console.error("Failed to update node:", err);
         }
@@ -192,20 +283,33 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
           try {
             const payload = {
               id: draggedNodeData.id,
-              pid: draggedNodeData.pid ?? "",
-              stpid: draggedNodeData.stpid ?? "",
+              pid: draggedNodeData.pid ?? null,
+              stpid: draggedNodeData.stpid ?? null,
               name: draggedNodeData.name ?? "",
               title: draggedNodeData.title ?? "",
-              photo: draggedNodeData.photo ?? "",
+              image: draggedNodeData.img ?? null,
               tags: draggedNodeData.tags ?? [],
-              orig_pid: draggedNodeData.orig_pid ?? "",
-              dept: draggedNodeData.dept ?? "",
-              BU: draggedNodeData.BU ?? "",
+              orig_pid: draggedNodeData.orig_pid ?? null,
+              dept: draggedNodeData.dept ?? null,
+              BU: draggedNodeData.BU ?? null,
               type: draggedNodeData.type ?? "",
+              location: draggedNodeData.location ?? null,
+              description: draggedNodeData.description ?? "",
+              joiningDate: draggedNodeData.joiningDate ?? ""
             };
 
-            await apiClient.post(UPDATE_NODE_API, payload);
-            await revalidate();
+            const response = await fetch("/api/orgchart", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+              await revalidate();
+            } else {
+              console.error("Drop update failed:", result.error);
+            }
           } catch (err) {
             console.error("Drop update failed:", err);
           }
@@ -230,8 +334,18 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
       setTimeout(async () => {
         try {
-          await apiClient.post(REMOVE_NODE_API, { id: nodeId });
-          await revalidate();
+          const response = await fetch("/api/orgchart", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: nodeId })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            await revalidate();
+          } else {
+            console.error("Failed to remove node:", result.error);
+          }
         } catch (err) {
           console.error("Failed to remove node:", err);
         }
@@ -240,8 +354,8 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
     chartRef.current = chart;
     chart.load(chartNodes);
-    console.log("OrgChart initialized with groups in side:", selectedGroup);
-  }, [selectedGroup, nodes]);
+    console.log("OrgChart initialized from Orgchart_data collection");
+  }, [nodes, loading]);
 
   // Show loading screen while data is loading
   if (loading) {
