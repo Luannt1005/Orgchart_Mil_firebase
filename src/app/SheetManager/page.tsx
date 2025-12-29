@@ -1,6 +1,22 @@
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+  PlusIcon,
+  ArrowPathIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  FunnelIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ArrowDownTrayIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  CheckIcon,
+  NoSymbolIcon,
+  ClockIcon,
+  ShieldCheckIcon
+} from "@heroicons/react/24/outline";
 import styles from "./sheet.module.css";
 
 interface SheetRow {
@@ -13,7 +29,6 @@ interface EditingCell {
   header: string;
 }
 
-// Các cột cần hiển thị
 const VISIBLE_COLUMNS = [
   "Emp ID",
   "BU",
@@ -33,10 +48,8 @@ const VISIBLE_COLUMNS = [
   "Employee Category"
 ];
 
-// Các cột là ngày tháng
-const DATE_COLUMNS = ["Joining\n Date", "Last Working Day"];
+const DATE_COLUMNS = ["Joining\r\n Date", "Last Working\r\nDay"];
 
-// Các cột cần filter
 const FILTER_COLUMNS = [
   "Emp ID",
   "Dept",
@@ -45,12 +58,11 @@ const FILTER_COLUMNS = [
   "DL/IDL/Staff"
 ];
 
-// Normalize field name (remove invalid characters for Firestore)
+// Helper to normalize field name for Firestore
 const normalizeFieldName = (fieldName: string): string => {
   return fieldName.replace(/[~*\/\[\]]/g, '_');
 };
 
-// Reverse normalize (để hiển thị lại)
 const denormalizeFieldName = (fieldName: string): string => {
   const mapping: { [key: string]: string } = {
     'DL_IDL_Staff': 'DL/IDL/Staff',
@@ -58,10 +70,13 @@ const denormalizeFieldName = (fieldName: string): string => {
   return mapping[fieldName] || fieldName;
 };
 
-// Hàm format ngày từ ISO sang DD/MM/YYYY
+// Flexible helper to identify Line Manager column
+const isLineManagerCol = (header: string) => {
+  return header.trim().replace(/\r\n|\n/g, ' ') === "Line Manager";
+};
+
 const formatDate = (value: any): string => {
   if (!value) return "";
-  
   try {
     if (typeof value === 'string' && value.includes('T')) {
       const date = new Date(value);
@@ -70,32 +85,24 @@ const formatDate = (value: any): string => {
       const year = date.getFullYear();
       return `${day}/${month}/${year}`;
     }
-    
     if (typeof value === 'string' && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
       return value;
     }
-    
     return String(value);
   } catch (e) {
     return String(value);
   }
 };
 
-// Hàm format ngày từ DD/MM/YYYY sang ISO (khi lưu)
 const formatDateToISO = (value: string): string => {
   if (!value) return "";
-  
   try {
-    if (value.includes('T')) {
-      return value;
-    }
-    
+    if (value.includes('T')) return value;
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
       const [day, month, year] = value.split('/');
       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
       return date.toISOString();
     }
-    
     return value;
   } catch (e) {
     return value;
@@ -105,45 +112,40 @@ const formatDateToISO = (value: string): string => {
 const SheetManager = () => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
+  const [originalRows, setOriginalRows] = useState<SheetRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 100;
-
-  // Filter states
+  const itemsPerPage = 50;
   const [filters, setFilters] = useState<{ [key: string]: string }>({});
-
-  // Edit states
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [modifiedRows, setModifiedRows] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(true);
+  const [showApprovalOnly, setShowApprovalOnly] = useState(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load data
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/sheet");
       const result = await response.json();
-
       if (result.success) {
-        // Log tất cả headers để xem tên thực tế
-        console.log("All available headers:", result.headers);
-        
         const visibleHeaders = result.headers.filter((h: string) =>
           VISIBLE_COLUMNS.includes(h) || VISIBLE_COLUMNS.includes(denormalizeFieldName(h))
         );
         setHeaders(visibleHeaders);
+        // Important: result.data already contains lineManagerStatus etc. if they exist in Firestore
         setRows(result.data || []);
+        setOriginalRows(JSON.parse(JSON.stringify(result.data || [])));
         setModifiedRows(new Set());
       } else {
-        setError(result.error || "Failed to load data");
+        setError(result.error || "Failed to load database");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Load error");
+      setError(err instanceof Error ? err.message : "Network error");
     } finally {
       setLoading(false);
     }
@@ -153,354 +155,361 @@ const SheetManager = () => {
     loadData();
   }, [loadData]);
 
-  // Handle filter change
   const handleFilterChange = (header: string, value: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      [header]: value,
-    }));
+    setFilters((prev) => ({ ...prev, [header]: value }));
     setCurrentPage(1);
   };
 
-  // Filter rows
-  const filteredRows = rows.filter((row) => {
-    for (const [header, filterValue] of Object.entries(filters)) {
-      if (filterValue && String(row[header]).toLowerCase() !== filterValue.toLowerCase()) {
-        return false;
-      }
-    }
-    return true;
-  });
+  const pendingApprovals = useMemo(() => {
+    return rows.filter(row => row.lineManagerStatus === 'pending');
+  }, [rows]);
 
-  // Pagination logic
+  const filteredRows = useMemo(() => {
+    let result = rows;
+
+    if (showApprovalOnly) {
+      result = pendingApprovals;
+    }
+
+    return result.filter((row) => {
+      for (const [header, filterValue] of Object.entries(filters)) {
+        if (filterValue && !String(row[header] || "").toLowerCase().includes(filterValue.toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, filters, showApprovalOnly, pendingApprovals]);
+
   const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedRows = filteredRows.slice(startIndex, endIndex);
+  const paginatedRows = filteredRows.slice(startIndex, startIndex + itemsPerPage);
 
-  // Handle cell click to edit
   const handleCellClick = (rowId: string, header: string) => {
     setEditingCell({ rowId, header });
   };
 
-  // Handle cell value change
   const handleCellChange = (rowId: string, header: string, value: string) => {
     setRows((prev) =>
-      prev.map((row) =>
-        row.id === rowId ? { ...row, [header]: value } : row
-      )
+      prev.map((row) => (row.id === rowId ? { ...row, [header]: value } : row))
     );
     setModifiedRows((prev) => new Set([...prev, rowId]));
   };
 
-  // Handle cell blur (stop editing)
-  const handleCellBlur = () => {
-    setEditingCell(null);
-  };
-
-  // Handle key press in cell
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      setEditingCell(null);
-    } else if (e.key === "Escape") {
-      setEditingCell(null);
+  const handleAddRow = () => {
+    if (headers.length === 0) {
+      setHeaders(VISIBLE_COLUMNS);
     }
+    const newId = `new-${Date.now()}`;
+    const newRow: SheetRow = { id: newId };
+    const targetHeaders = headers.length > 0 ? headers : VISIBLE_COLUMNS;
+
+    targetHeaders.forEach(header => {
+      newRow[header] = "";
+    });
+
+    setRows(prev => [newRow, ...prev]);
+    setModifiedRows(prev => new Set([...prev, newId]));
+    setCurrentPage(1);
+
+    // Auto-edit first cell
+    setEditingCell({ rowId: newId, header: targetHeaders[0] });
   };
 
-  // Save all modified rows
   const handleSaveAll = async () => {
-    if (modifiedRows.size === 0) {
-      alert("❌ No changes to save");
-      return;
-    }
-
+    if (modifiedRows.size === 0) return;
     setSaving(true);
+    setError(null);
     let successCount = 0;
-    let errorCount = 0;
-
     try {
       for (const rowId of modifiedRows) {
         const row = rows.find((r) => r.id === rowId);
-        if (!row) continue;
+        const isNewRow = rowId.startsWith("new-");
+        // For new rows, we use an empty object as originalRow
+        const originalRow: any = isNewRow ? {} : originalRows.find((r) => r.id === rowId);
+
+        if (!row || (!isNewRow && !originalRow)) continue;
 
         const dataToSave: { [key: string]: any } = {};
+
         headers.forEach((header) => {
           let value = row[header] || "";
-          
+          let originalValue = isNewRow ? "" : (originalRow[header] || "");
+
           if (DATE_COLUMNS.includes(header)) {
             value = formatDateToISO(value);
+            originalValue = isNewRow ? "" : formatDateToISO(originalValue);
           }
-          
-          const normalizedHeader = normalizeFieldName(header);
-          dataToSave[normalizedHeader] = value;
-        });
 
-        console.log("Saving row:", { rowId, data: dataToSave });
+          const normalizedHeader = normalizeFieldName(header);
+
+          // Rule: Line Manager changes require approval
+          if (isLineManagerCol(header) && value !== originalValue) {
+            dataToSave["pendingLineManager"] = value;
+            dataToSave["lineManagerStatus"] = "pending";
+            // Important: We do NOT update the main "Line Manager" field here
+          } else {
+            dataToSave[normalizedHeader] = value;
+          }
+        });
 
         const response = await fetch("/api/sheet", {
-          method: "PUT",
+          method: isNewRow ? "POST" : "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: rowId,
-            data: dataToSave,
-          }),
+          body: isNewRow
+            ? JSON.stringify({ action: "add", data: dataToSave })
+            : JSON.stringify({ id: rowId, data: dataToSave }),
         });
-
         const result = await response.json();
-        console.log("Save result:", result);
-        
-        if (result.success) {
-          successCount++;
-        } else {
-          console.error("Save failed:", result.error);
-          errorCount++;
-        }
+        if (result.success) successCount++;
       }
 
-      if (errorCount === 0) {
-        setModifiedRows(new Set());
-        
-        // Sync to Orgchart_data
-        try {
-          console.log("Syncing to Orgchart_data...");
-          const syncResponse = await fetch("/api/sync-orgchart", {
-            method: "POST"
-          });
-          const syncResult = await syncResponse.json();
-          console.log("Sync result:", syncResult);
-          
-          if (syncResult.success) {
-            setSuccessMessage(`✅ Saved ${successCount} row(s) and synced to Orgchart`);
-          } else {
-            setSuccessMessage(`✅ Saved ${successCount} row(s) but sync failed`);
-          }
-        } catch (syncErr) {
-          console.error("Sync error:", syncErr);
-          setSuccessMessage(`✅ Saved ${successCount} row(s) but sync failed`);
-        }
-        
-        await loadData();
-        setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert(`⚠️ Saved ${successCount} rows, ${errorCount} failed`);
-      }
+      await loadData(); // Refresh and sync state
+      setSuccessMessage(`Successfully processed ${successCount} records. Check 'Review Changes' for LM updates.`);
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
-      console.error("Save error:", err);
-      alert("❌ " + (err instanceof Error ? err.message : "Error"));
+      setError("Failed to save changes. Please check connection.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Add new row
-  const handleAddRow = async () => {
-    const newRow: { [key: string]: string } = {};
-    headers.forEach((h) => {
-      newRow[h] = "";
-    });
+  const handleApprovalAction = async (rowId: string, action: 'approve' | 'reject') => {
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
 
-    console.log("Adding row:", newRow);
-
+    setSaving(true);
     try {
+      let dataToUpdate: any = {};
+      if (action === 'approve') {
+        const lmHeader = headers.find(isLineManagerCol) || "Line Manager";
+        dataToUpdate[normalizeFieldName(lmHeader)] = row.pendingLineManager;
+        dataToUpdate["lineManagerStatus"] = "approved";
+        dataToUpdate["pendingLineManager"] = null;
+      } else {
+        dataToUpdate["lineManagerStatus"] = "rejected";
+        dataToUpdate["pendingLineManager"] = null;
+      }
+
       const response = await fetch("/api/sheet", {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "add",
-          data: newRow,
-        }),
+        body: JSON.stringify({ id: rowId, data: dataToUpdate }),
       });
 
       const result = await response.json();
-      console.log("Add result:", result);
-
       if (result.success) {
+        // Sync to Orgchart if approved
+        if (action === 'approve') {
+          await fetch("/api/sync-orgchart", { method: "POST" });
+        }
+        setSuccessMessage(action === 'approve' ? "Changes approved and database updated." : "Request rejected successfully.");
         await loadData();
-        setSuccessMessage("✅ Row added successfully");
         setTimeout(() => setSuccessMessage(null), 3000);
-      } else {
-        alert("❌ " + (result.error || "Error"));
       }
     } catch (err) {
-      console.error("Add error:", err);
-      alert("❌ " + (err instanceof Error ? err.message : "Error"));
-    }
-  };
-
-  // Handle clear filters
-  const handleClearFilters = () => {
-    setFilters({});
-    setCurrentPage(1);
-  };
-
-  // Handle pagination
-  const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  };
-
-  const handleGoToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+      setError("Approval error occurred.");
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.spinner}>Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.error}>❌ {error}</div>
+      <div className={styles.spinner}>
+        <ArrowPathIcon className="w-12 h-12 text-[#DB011C] animate-spin mx-auto mb-4" />
+        <span>Syncing Registry...</span>
       </div>
     );
   }
 
   return (
     <div className={styles.container}>
-      {/* HEADER */}
       <div className={styles.header}>
-        <h1>📊 Sheet Manager</h1>
-        <button onClick={handleAddRow} className={styles.btnCreate}>
-          ➕ Add New Row
-        </button>
-      </div>
-
-      {/* SUCCESS MESSAGE */}
-      {successMessage && (
-        <div className={styles.successMessage}>{successMessage}</div>
-      )}
-
-      {/* FILTERS */}
-      <div className={styles.filterBox}>
-        <div className={styles.filterRow}>
-          {headers.filter(h => FILTER_COLUMNS.includes(h)).map((header) => (
-            <div key={header} className={styles.filterInputWrapper}>
-              <label className={styles.filterLabel}>{header}</label>
-              <input
-                type="text"
-                placeholder={`Filter...`}
-                value={filters[header] || ""}
-                onChange={(e) => handleFilterChange(header, e.target.value)}
-                className={styles.filterInput}
-              />
-            </div>
-          ))}
+        <div className="flex items-center gap-4">
+          <ShieldCheckIcon className="w-8 h-8 text-[#DB011C]" />
+          <h1>Milwaukee Tool HR Registry</h1>
         </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowApprovalOnly(!showApprovalOnly)}
+            className={`${styles.btnReset} flex items-center gap-2`}
+            style={{ backgroundColor: showApprovalOnly ? '#f59e0b' : '#6c757d' }}
+          >
+            <ClockIcon className="w-4 h-4" />
+            {showApprovalOnly ? 'Hide Requests' : 'Review Changes'}
+            {pendingApprovals.length > 0 && !showApprovalOnly && (
+              <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+                {pendingApprovals.length}
+              </span>
+            )}
+          </button>
 
-        <button
-          onClick={handleClearFilters}
-          className={styles.btnReset}
-        >
-          🔄 Clear Filters
-        </button>
-      </div>
+          <button
+            onClick={handleAddRow}
+            className={styles.btnCreate}
+          >
+            <PlusIcon className="w-4 h-4 inline mr-1" />
+            Add Entry
+          </button>
 
-      {/* TOOLBAR */}
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarInfo}>
-          Showing <strong>{paginatedRows.length}</strong> of{" "}
-          <strong>{filteredRows.length}</strong> rows (Page{" "}
-          <strong>{currentPage}</strong> of <strong>{totalPages || 1}</strong>)
-          {modifiedRows.size > 0 && (
-            <span style={{ marginLeft: "20px", color: "#f59e0b" }}>
-              • <strong>{modifiedRows.size}</strong> unsaved changes
-            </span>
-          )}
-        </div>
-        {modifiedRows.size > 0 && (
           <button
             onClick={handleSaveAll}
-            disabled={saving}
+            disabled={saving || modifiedRows.size === 0}
             className={styles.btnSaveAll}
           >
-            {saving ? "💾 Saving..." : "💾 Save All Changes"}
+            {saving ? <ArrowPathIcon className="w-4 h-4 animate-spin inline mr-1" /> : <ArrowDownTrayIcon className="w-4 h-4 inline mr-1" />}
+            Save Changes ({modifiedRows.size})
           </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {/* Messages */}
+        {error && (
+          <div className={styles.error}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ExclamationCircleIcon className="w-5 h-5" />
+                <span>{error}</span>
+              </div>
+              <button onClick={() => setError(null)}><XMarkIcon className="w-5 h-5" /></button>
+            </div>
+          </div>
         )}
-      </div>
+        {successMessage && (
+          <div className={styles.successMessage}>
+            <div className="flex items-center gap-2">
+              <CheckCircleIcon className="w-5 h-5" />
+              <span>{successMessage}</span>
+            </div>
+          </div>
+        )}
 
-      {/* TABLE */}
-      <div className={styles.tableWrapper}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th key={header} style={{ minWidth: "150px" }}>
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedRows.map((row) => (
-              <tr
-                key={row.id}
-                className={modifiedRows.has(row.id) ? styles.modified : ""}
-              >
-                {headers.map((header) => (
-                  <td
-                    key={`${row.id}-${header}`}
-                    onClick={() => handleCellClick(row.id, header)}
-                  >
-                    {editingCell?.rowId === row.id &&
-                    editingCell?.header === header ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        value={String(row[header] || "")}
-                        onChange={(e) =>
-                          handleCellChange(row.id, header, e.target.value)
-                        }
-                        onBlur={handleCellBlur}
-                        onKeyDown={handleKeyDown}
-                        className={styles.cellInput}
-                      />
-                    ) : (
-                      <div className={styles.cellContent}>
-                        {DATE_COLUMNS.includes(header)
-                          ? formatDate(row[header])
-                          : String(row[header] || "")}
-                      </div>
-                    )}
-                  </td>
-                ))}
-              </tr>
+        {/* Filters */}
+        <div className={styles.filterBox}>
+          <div className={styles.filterRow}>
+            {headers.filter(h => FILTER_COLUMNS.includes(h)).map((header) => (
+              <div key={header} className={styles.filterInputWrapper}>
+                <label className={styles.filterLabel}>{header}</label>
+                <input
+                  type="text"
+                  placeholder={`Search ${header}...`}
+                  value={filters[header] || ""}
+                  onChange={(e) => handleFilterChange(header, e.target.value)}
+                  className={styles.filterInput}
+                />
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+          <button
+            onClick={() => { setFilters({}); setShowApprovalOnly(false); }}
+            className={styles.btnReset}
+          >
+            Clear Filters
+          </button>
+        </div>
 
-      {/* PAGINATION */}
-      <div className={styles.pagination}>
-        <button
-          onClick={handlePreviousPage}
-          disabled={currentPage === 1}
-          className={styles.btnPagination}
-        >
-          ← Previous
-        </button>
-        <span style={{ margin: "0 15px", fontWeight: "bold" }}>
-          Page {currentPage} of {totalPages || 1}
-        </span>
-        <button
-          onClick={handleNextPage}
-          disabled={currentPage === totalPages || totalPages === 0}
-          className={styles.btnPagination}
-        >
-          Next →
-        </button>
-      </div>
+        {/* Table Container */}
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                {headers.map((header) => (
+                  <th key={header}>{header.replace(/\r\n/g, ' ')}</th>
+                ))}
+                {showApprovalOnly && <th>Actions</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedRows.map((row) => (
+                <tr key={row.id} className={modifiedRows.has(row.id) ? styles.modified : ''}>
+                  {headers.map((header) => {
+                    const isEditing = editingCell?.rowId === row.id && editingCell?.header === header;
+                    const isLM = isLineManagerCol(header);
+                    const isPending = isLM && row.lineManagerStatus === 'pending';
 
-      <div className={styles.paginationInfo}>
-        💡 Click on any cell to edit. Changes are marked in yellow until saved.
+                    return (
+                      <td
+                        key={`${row.id}-${header}`}
+                        onClick={() => handleCellClick(row.id, header)}
+                      >
+                        {isEditing ? (
+                          <input
+                            autoFocus
+                            value={String(row[header] || "")}
+                            onChange={(e) => handleCellChange(row.id, header, e.target.value)}
+                            onBlur={() => setEditingCell(null)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }}
+                            className={styles.cellInput}
+                          />
+                        ) : (
+                          <div className={styles.cellContent}>
+                            <div className="flex flex-col">
+                              <span>{DATE_COLUMNS.includes(header) ? formatDate(row[header]) : String(row[header] || "")}</span>
+                              {isPending && (
+                                <span className="text-[10px] text-amber-600 font-bold mt-1">
+                                  Request: {row.pendingLineManager}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+
+                  {showApprovalOnly && (
+                    <td>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApprovalAction(row.id, 'approve')}
+                          disabled={saving}
+                          className="px-2 py-1 bg-green-500 text-white rounded text-xs"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleApprovalAction(row.id, 'reject')}
+                          disabled={saving}
+                          className="px-2 py-1 bg-red-500 text-white rounded text-xs"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className={styles.pagination}>
+          <div className="flex items-center justify-between px-4">
+            <div className={styles.toolbarInfo}>
+              Total Records: <strong>{filteredRows.length}</strong>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1 border rounded disabled:opacity-30"
+              >
+                <ChevronLeftIcon className="w-5 h-5" />
+              </button>
+              <span>Page {currentPage} of {totalPages || 1}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="p-1 border rounded disabled:opacity-30"
+              >
+                <ChevronRightIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

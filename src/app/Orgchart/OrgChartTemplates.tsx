@@ -3,135 +3,268 @@
 import OrgChart from "@balkangraph/orgchart.js";
 
 export function patchOrgChartTemplates() {
-    // Chỉ chạy khi đã có window
-    if (typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
-    // --- TEMPLATE BIG (bản rút gọn mẫu, bạn thay theo code Vue) ---
-    OrgChart.templates.big = Object.assign({}, OrgChart.templates.ana);
-    OrgChart.templates.big.defs = 
-    `<filter x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox" id="cool-shadow">
-        <feOffset dx="0" dy="4" in="SourceAlpha" result="shadowOffsetOuter1" />
-        <feGaussianBlur stdDeviation="10" in="shadowOffsetOuter1" result="shadowBlurOuter1" />
-        <feColorMatrix values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.1 0" in="shadowBlurOuter1" type="matrix" result="shadowMatrixOuter1" />
+  // --- TEMPLATE BIG (Milwaukee Industrial Edition) ---
+  OrgChart.templates.big = Object.assign({}, OrgChart.templates.ana);
+
+  // Industrial Sharp Shadow
+  OrgChart.templates.big.defs =
+    `<filter x="-20%" y="-20%" width="140%" height="140%" id="mil-shadow">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+        <feOffset dx="0" dy="2" result="offsetblur" />
+        <feComponentTransfer>
+            <feFuncA type="linear" slope="0.2" />
+        </feComponentTransfer>
         <feMerge>
-            <feMergeNode in="shadowMatrixOuter1" />
+            <feMergeNode />
             <feMergeNode in="SourceGraphic" />
         </feMerge>
     </filter>`;
-    OrgChart.templates.big.size = [230, 330];
-    
-      OrgChart.templates.big.img_0 =
-  `<image preserveAspectRatio="xMidYMid slice" xlink:href="{val}" x="45" y="30"  width="140" height="180" rx="15" ry="15"></image>`;
+
+  OrgChart.templates.big.size = [230, 330];
+
+  // Main Node Body: Solid White, Red Top Accent
+  OrgChart.templates.big.size = [230, 380]; // 330 + 50
+
+  // ------------------------------
+  // Main Node Body
+  // ------------------------------
+  OrgChart.templates.big.node = `
+<rect x="0" y="50" height="330" width="230"
+      fill="white"
+      stroke="#E5E7EB"
+      stroke-width="1"
+      rx="0" ry="0"
+      filter="url(#mil-shadow)"></rect>
+
+<rect x="0" y="50" height="10" width="230"
+      fill="#DB011C"
+      rx="0" ry="0"></rect>
+`;
+
+  // ------------------------------
+  // Image
+  // ------------------------------
+  OrgChart.templates.big.img_0 = `
+<clipPath id="{randId}">
+  <rect x="45" y="85" width="140" height="170"
+        rx="2" ry="2" fill="#ffffff"></rect>
+</clipPath>
+
+<image preserveAspectRatio="xMidYMid slice"
+       clip-path="url(#{randId})"
+       xlink:href="{val}"
+       x="45" y="85"
+       width="140" height="170"></image>
+
+<rect x="45" y="85" width="140" height="170"
+      rx="2" ry="2"
+      fill="none"
+      stroke="#DB011C"
+      stroke-width="3"></rect>
+`;
+
+  // ------------------------------
+  // Expand / Collapse Controls
+  // ------------------------------
+  OrgChart.templates.big.expandCollapseSize = 40;
+
+  OrgChart.templates.big.minus = `
+<rect x="15" y="15" height="24" width="24"
+      fill="#000"
+      rx="2" ry="2"></rect>
+<line x1="20" y1="27" x2="34" y2="27"
+      stroke="white"
+      stroke-width="3" />
+`;
+
+  OrgChart.templates.big.plus = `
+<rect x="15" y="15" height="24" width="24"
+      fill="#DB011C"
+      rx="2" ry="2"></rect>
+<line x1="20" y1="27" x2="34" y2="27"
+      stroke="white"
+      stroke-width="3" />
+<line x1="27" y1="20" x2="27" y2="34"
+      stroke="white"
+      stroke-width="3" />
+`;
+
+  // ------------------------------
+  // Text Fields
+  // ------------------------------
+  OrgChart.templates.big.field_0 = `
+<text data-width="210"
+      x="115" y="295"
+      text-anchor="middle"
+      fill="#000"
+      style="font-size:14px; font-weight:900; text-transform:uppercase;">
+  {val}
+</text>
+`;
+
+  OrgChart.templates.big.field_1 = `
+<text data-width="210"
+      x="115" y="320"
+      text-anchor="middle"
+      fill="#DB011C"
+      style="font-size:12px; font-weight:700; text-transform:uppercase;">
+  {val}
+</text>
+`;
+
+  // ------------------------------
+  // Hide "up" button
+  // ------------------------------
+  OrgChart.templates.big.up = "";
+  // --- GROUP TEMPLATE (Sector Header) ---
+  // Initialize if not exists, or clone from ana
+  if (!OrgChart.templates.group) {
+    OrgChart.templates.group = Object.assign({}, OrgChart.templates.ana);
+  }
+
+  OrgChart.templates.group.size = [500, 50];
+
+  OrgChart.templates.group.node =
+    '<rect x="0" y="0" height="60" width="{w}" rx="0" ry="0" fill="#828282" stroke="#000" stroke-width="4" filter="url(#mil-shadow)"></rect>' +
+    '<rect x="0" y="0" height="8" width="{w}" fill="#DB011C"></rect>';
+
+  OrgChart.templates.group.field_0 =
+    '<text data-width="480" style="font-size: 23px; font-weight: 1000; text-transform: uppercase;" fill="#000" x="{cw}" y="42" text-anchor="middle">{val}</text>';
+
+  OrgChart.templates.group.link =
+    '<path stroke-linejoin="round" stroke="#000" stroke-width="2px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />';
+
+  OrgChart.templates.group.nodeMenuButton = '';
+  OrgChart.templates.group.up = '';
+  OrgChart.templates.group.plus = '';
+  OrgChart.templates.group.minus = '';
 
 
-  OrgChart.templates.big.img_0 =
-  `<clipPath id="{randId}">
-        <rect fill="#ffffff" stroke="#039BE5" stroke-width="5" x="45" y="30" rx="10" ry="10" width="140" height="180"></rect>
-    </clipPath>
-    <image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="45" y="30" width="140" height="180"></image>
-    <rect fill="none" stroke="#F57C00" stroke-width="2" x="45" y="30" rx="10" ry="10" width="140" height="180"></rect>`;
-  
-      OrgChart.templates.big.node =
-  `<rect x="0" y="20" height="300" width="{w}" fill="#A8CBED" rx="10" ry="10" filter="url(#cool-shadow)"></rect>`;
-      OrgChart.templates.big.minus =
-        `<rect x="0" y="50" height="35" width="170" fill="#bd011c" stroke-width="1" stroke="#aeaeae"></rect>
-    <path fill="#fff" d="M75,75 L85,65 L95,75"></path>`;
-      OrgChart.templates.big.plus =
-        `<rect x="0" y="50" height="35" width="170" fill="#bd011c" stroke-width="1" stroke="#aeaeae"></rect>
-    <path fill="#fff" d="M75,65 L85,75 L95,65"></path>
-    <text text-anchor="middle" style="font-size: 12px;cursor:pointer;" fill="#fff" x="85" y="63">({collapsed-children-count})</text>`;
-      OrgChart.templates.big.expandCollapseSize = 170;
-      OrgChart.templates.big.field_0 =
-        `<text data-width="210" data-text-overflow="multiline" style="font-size: 16px;" fill="#000" x="30" y="275" font-weight="bold" text-anchor="start">{val}</text>`,
-        OrgChart.templates.big.field_1 =
-        `<text data-width="260" data-text-overflow="multiline" style="font-size: 18px;" fill="#000" x="25" y="235"  font-weight="bold" text-anchor="start">{val}</text>`;
-      OrgChart.templates.big.up = '';
-
-      // OrgChart.templates.big.nodeMenuButton = 
 
 
 
 
-    OrgChart.templates.big_v2 = Object.assign({}, OrgChart.templates.ana);
-    OrgChart.templates.big_v2.defs = 
-    `<filter x="-50%" y="-50%" width="200%" height="200%" filterUnits="objectBoundingBox" id="cool-shadow">
-        <feOffset dx="0" dy="4" in="SourceAlpha" result="shadowOffsetOuter1" />
-        <feGaussianBlur stdDeviation="10" in="shadowOffsetOuter1" result="shadowBlurOuter1" />
-        <feColorMatrix values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.1 0" in="shadowBlurOuter1" type="matrix" result="shadowMatrixOuter1" />
+  // --- TEMPLATE BIG (Milwaukee Industrial Edition) ---
+  OrgChart.templates.big_v2 = Object.assign({}, OrgChart.templates.ana);
+
+  // Industrial Sharp Shadow
+  OrgChart.templates.big_v2.defs =
+    `<filter x="-20%" y="-20%" width="140%" height="140%" id="mil-shadow">
+        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+        <feOffset dx="0" dy="2" result="offsetblur" />
+        <feComponentTransfer>
+            <feFuncA type="linear" slope="0.2" />
+        </feComponentTransfer>
         <feMerge>
-            <feMergeNode in="shadowMatrixOuter1" />
+            <feMergeNode />
             <feMergeNode in="SourceGraphic" />
         </feMerge>
     </filter>`;
-    OrgChart.templates.big_v2.size = [230, 330];
-    
-      OrgChart.templates.big_v2.img_0 =
-  `<image preserveAspectRatio="xMidYMid slice" xlink:href="{val}" x="45" y="30"  width="140" height="180" rx="15" ry="15"></image>`;
 
+  OrgChart.templates.big_v2.size = [230, 330];
 
-  OrgChart.templates.big_v2.img_0 =
-  `<clipPath id="{randId}">
-        <rect fill="#ffffff" stroke="#039BE5" stroke-width="5" x="45" y="30" rx="10" ry="10" width="140" height="180"></rect>
-    </clipPath>
-    <image preserveAspectRatio="xMidYMid slice" clip-path="url(#{randId})" xlink:href="{val}" x="45" y="30" width="140" height="180"></image>
-    <rect fill="none" stroke="#F57C00" stroke-width="2" x="45" y="30" rx="10" ry="10" width="140" height="180"></rect>`;
-  
-      OrgChart.templates.big_v2.node =
-  `<rect x="0" y="20" height="300" width="{w}" fill="#93DC5C" rx="10" ry="10" filter="url(#cool-shadow)"></rect>`;
-      OrgChart.templates.big_v2.minus =
-        `<rect x="0" y="50" height="35" width="170" fill="#bd011c" stroke-width="1" stroke="#aeaeae"></rect>
-    <path fill="#fff" d="M75,75 L85,65 L95,75"></path>`;
-      OrgChart.templates.big_v2.plus =
-        `<rect x="0" y="50" height="35" width="170" fill="#bd011c" stroke-width="1" stroke="#aeaeae"></rect>
-    <path fill="#fff" d="M75,65 L85,75 L95,65"></path>
-    <text text-anchor="middle" style="font-size: 12px;cursor:pointer;" fill="#fff" x="85" y="63">({collapsed-children-count})</text>`;
-      OrgChart.templates.big_v2.expandCollapseSize = 170;
-      OrgChart.templates.big_v2.field_0 =
-        `<text data-width="210" data-text-overflow="multiline" style="font-size: 16px;" fill="#000" x="30" y="275" font-weight="bold" text-anchor="start">{val}</text>`,
-        OrgChart.templates.big_v2.field_1 =
-        `<text data-width="260" data-text-overflow="multiline" style="font-size: 18px;" fill="#000" x="25" y="235"  font-weight="bold" text-anchor="start">{val}</text>`;
-      OrgChart.templates.big_v2.up = '';
+  // Main Node Body: Solid White, Red Top Accent
+  OrgChart.templates.big_v2.size = [230, 380]; // 330 + 50
 
+  // ------------------------------
+  // Main Node Body
+  // ------------------------------
+  OrgChart.templates.big_v2.node = `
+<rect x="0" y="50" height="330" width="230"
+      fill="#82A762"
+      stroke="#E5E7EB"
+      stroke-width="1"
+      rx="0" ry="0"
+      filter="url(#mil-shadow)"></rect>
 
+<rect x="0" y="50" height="10" width="230"
+      fill="#DB011C"
+      rx="0" ry="0"></rect>
+`;
 
-   
+  // ------------------------------
+  // Image
+  // ------------------------------
+  OrgChart.templates.big_v2.img_0 = `
+<clipPath id="{randId}">
+  <rect x="45" y="85" width="140" height="170"
+        rx="2" ry="2" fill="#ffffff"></rect>
+</clipPath>
 
+<image preserveAspectRatio="xMidYMid slice"
+       clip-path="url(#{randId})"
+       xlink:href="{val}"
+       x="45" y="85"
+       width="140" height="170"></image>
 
+<rect x="45" y="85" width="140" height="170"
+      rx="2" ry="2"
+      fill="none"
+      stroke="#DB011C"
+      stroke-width="3"></rect>
+`;
 
+  // ------------------------------
+  // Expand / Collapse Controls
+  // ------------------------------
+  OrgChart.templates.big_v2.expandCollapseSize = 40;
 
+  OrgChart.templates.big_v2.minus = `
+<rect x="15" y="15" height="24" width="24"
+      fill="#000"
+      rx="2" ry="2"></rect>
+<line x1="20" y1="27" x2="34" y2="27"
+      stroke="white"
+      stroke-width="3" />
+`;
 
+  OrgChart.templates.big_v2.plus = `
+<rect x="15" y="15" height="24" width="24"
+      fill="#DB011C"
+      rx="2" ry="2"></rect>
+<line x1="20" y1="27" x2="34" y2="27"
+      stroke="white"
+      stroke-width="3" />
+<line x1="27" y1="20" x2="27" y2="34"
+      stroke="white"
+      stroke-width="3" />
+`;
 
+  // ------------------------------
+  // Text Fields
+  // ------------------------------
+  OrgChart.templates.big_v2.field_0 = `
+<text data-width="210"
+      x="115" y="295"
+      text-anchor="middle"
+      fill="#000"
+      style="font-size:14px; font-weight:900; text-transform:uppercase;">
+  {val}
+</text>
+`;
 
+  OrgChart.templates.big_v2.field_1 = `
+<text data-width="210"
+      x="115" y="320"
+      text-anchor="middle"
+      fill="#DB011C"
+      style="font-size:12px; font-weight:700; text-transform:uppercase;">
+  {val}
+</text>
+`;
 
-
-
-
-
-      // --- TEMPLATE cho DEPARTMENT  ---
-
-      OrgChart.templates.group.link =
-        `<path stroke-linejoin="round" stroke="#aeaeae" stroke-width="1px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />`
-      OrgChart.templates.group.nodeMenuButton = '';
-      OrgChart.templates.group.min = Object.assign({}, OrgChart.templates.group);
-      OrgChart.templates.group.min.imgs = `{val}`;
-      OrgChart.templates.group.min.img_0 = ``;
-      OrgChart.templates.group.unitName = '';
-      OrgChart.templates.group.field_0 = '<text data-width="500" data-text-overflow="multiline" style="font-size: 28px;" fill="#000" x="{cw}" y="36" font-weight="bold" text-anchor="middle">{val}</text>';
-
-    // Ensure the group template exists and `node` is a string before modifying it
-    if (!OrgChart.templates.group) {
-      OrgChart.templates.group = Object.assign({}, OrgChart.templates.ana);
-    }
-
-    if (typeof OrgChart.templates.group.node === 'string') {
-      OrgChart.templates.group.node = OrgChart.templates.group.node
-        .replace('<rect ', '<rect fill="white" ')
-        .replace('<rect ', '<rect filter="url(#outsideStroke)"')
-        .replace(/rx="\d+"/, 'rx="2"')
-        .replace(/ry="\d+"/, 'ry="2"')
-        .replace('</rect>', '</rect> <rect x="0" y="0" height="65" width="{w}" rx="2" ry="2" fill="grey"></rect>');
-    }
-
-
+  // ------------------------------
+  // Hide "up" button
+  // ------------------------------
+  OrgChart.templates.big_v2.up = "";
 
 }
+
+
+
+
+
+
+

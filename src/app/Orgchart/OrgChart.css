@@ -1,16 +1,110 @@
+/* Milwaukee Tool Professional OrgChart Styles - Refined Edition */
+
 #tree {
     width: 100%;
     height: 100%;
-    background-image: 
-        /* linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)), */
-        url('/mil_bg_org.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    background-color: #f8f9fa;
+    /* Subtle Professional Grid */
+    background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+    background-size: 30px 30px;
+    position: relative;
+    overflow: hidden;
 }
 
+/* Depth vignette */
+#tree::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at center, transparent 60%, rgba(0, 0, 0, 0.02) 100%);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Node Container Enhancements */
 #tree .boc-node {
-    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
+#tree .boc-node:hover {
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.08));
+}
 
+/* Sharp geometry for SVG elements */
+#tree [data-node-id] rect {
+    shape-rendering: geometricPrecision;
+    vector-effect: non-scaling-stroke;
+    rx: 8px;
+    /* Slightly rounded corners for nodes */
+    ry: 8px;
+}
+
+/* Typography Polish */
+#tree text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    user-select: none;
+}
+
+/* Link Styling */
+#tree path.boc-link {
+    stroke: #d1d5db;
+    stroke-width: 1.5px;
+    transition: all 0.2s ease;
+}
+
+#tree .boc-node:hover+path.boc-link,
+#tree path.boc-link:hover {
+    stroke: #DB011C !important;
+    stroke-width: 2.5px !important;
+}
+
+/* Custom Search Box Styling */
+.boc-search {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+    padding: 12px 20px !important;
+    font-weight: 600 !important;
+}
+
+/* Edit Menu / Details Menu */
+.boc-edit-form,
+.boc-details {
+    border-radius: 16px !important;
+    border: 1px solid #e5e7eb !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
+    overflow: hidden !important;
+}
+
+.boc-edit-form-header,
+.boc-details-header {
+    background: #f9fafb !important;
+    color: #111827 !important;
+    font-weight: 700 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Highlight */
+[data-node-id].selected rect {
+    stroke: #DB011C !important;
+    stroke-width: 3px !important;
+}
+
+/* Scrollbar */
+#tree ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#tree ::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+#tree ::-webkit-scrollbar-track {
+    background: transparent;
+}
