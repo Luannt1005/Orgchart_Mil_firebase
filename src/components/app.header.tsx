@@ -132,6 +132,12 @@ function AppHeader() {
               Import Data HR
             </Link>
             <Link
+              href="/Dashboard"
+              className={`mwk-nav-link ${pathname === "/Dashboard" ? "active" : ""}`}
+            >
+              Dashboard
+            </Link>
+            <Link
               href="/SheetManager"
               className={`mwk-nav-link ${pathname === "/SheetManager" ? "active" : ""}`}
             >

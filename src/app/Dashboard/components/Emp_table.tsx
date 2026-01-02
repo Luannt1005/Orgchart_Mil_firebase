@@ -1,0 +1,239 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSheetData } from '@/hooks/useSheetData';
+import type { EmployeeFilter } from '../page';
+import { OrgNode } from '@/types/orgchart';
+
+interface EmployeeTableProps {
+    className?: string;
+    filter?: EmployeeFilter;
+    nodes?: OrgNode[];
+    loading?: boolean;
+}
+
+const ITEMS_PER_PAGE = 8;
+
+const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes: propNodes, loading: propLoading }) => {
+    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
+
+    const nodes = propNodes || fetchedNodes;
+    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter]);
+
+    // Calculate tenure
+    const calculateExperience = (joiningDate: string | number): string => {
+        if (!joiningDate) return "0M";
+
+        let startDate: Date;
+
+        if (typeof joiningDate === "number" || /^\d+$/.test(String(joiningDate))) {
+            const excelEpoch = new Date(1899, 11, 30);
+            startDate = new Date(excelEpoch.getTime() + Number(joiningDate) * 86400000);
+        } else if (String(joiningDate).includes("/")) {
+            const [day, month, year] = String(joiningDate).split("/").map(Number);
+            startDate = new Date(year, month - 1, day);
+        } else {
+            startDate = new Date(joiningDate);
+        }
+
+        if (isNaN(startDate.getTime())) return "0M";
+
+        const now = new Date();
+        let years = now.getFullYear() - startDate.getFullYear();
+        let months = now.getMonth() - startDate.getMonth();
+
+        if (now.getDate() < startDate.getDate()) months--;
+        if (months < 0) { years--; months += 12; }
+
+        if (years <= 0 && months <= 0) return "0M";
+        if (years > 0) return `${years}Y ${months}M`;
+        return `${months}M`;
+    };
+
+    // Process and filter employee data
+    const employees = useMemo(() => {
+        let filtered = nodes.map((node: any) => ({
+            empId: node['Emp ID'] || node.id || '',
+            title: node['Job Title'] || node.title || '',
+            dept: node['Dept'] || node.dept || '',
+            experience: calculateExperience(node['Joining\r\n Date'] || node['Joining Date'] || ''),
+            fullName: node['FullName '] || node['FullName'] || node.name || 'Unknown',
+            dlIdlStaff: node['DL/IDL/Staff'] || '',
+            imageUrl: `https://raw.githubusercontent.com/Luannt1005/test-images/main/${node['Emp ID'] || node.id}.jpg`
+        }));
+
+        // Apply filters
+        if (filter) {
+            if (filter.type === 'staff') {
+                filtered = filtered.filter(emp => emp.dlIdlStaff.toLowerCase().includes('staff'));
+            } else if (filter.type === 'idl') {
+                filtered = filtered.filter(emp => emp.dlIdlStaff.toLowerCase().includes('idl'));
+            } else if (filter.type === 'title' && filter.value) {
+                const keywords = filter.value.toLowerCase().split(" ");
+                filtered = filtered.filter(emp => {
+                    const title = emp.title.toLowerCase();
+                    return keywords.every((k: string) => title.includes(k));
+                });
+            } else if (filter.type === 'tenure' && filter.value) {
+                const [minStr, maxStr] = filter.value.split('-');
+                const min = parseInt(minStr);
+                const max = maxStr === 'Infinity' ? Infinity : parseInt(maxStr);
+
+                filtered = filtered.filter(emp => {
+                    const expStr = emp.experience;
+                    let totalMonths = 0;
+                    const yearMatch = expStr.match(/(\d+)Y/);
+                    if (yearMatch) totalMonths += parseInt(yearMatch[1]) * 12;
+                    const monthMatch = expStr.match(/(\d+)M/);
+                    if (monthMatch) totalMonths += parseInt(monthMatch[1]);
+                    return totalMonths >= min && totalMonths < max;
+                });
+            } else if (filter.type === 'type' && filter.value) {
+                const typeValue = filter.value.toLowerCase();
+                filtered = filtered.filter(emp => {
+                    const dlIdlStaff = emp.dlIdlStaff.toLowerCase();
+                    if (typeValue === 'staff') return dlIdlStaff.includes('staff');
+                    if (typeValue === 'idl') return dlIdlStaff.includes('idl');
+                    if (typeValue === 'dl') return !dlIdlStaff.includes('staff') && !dlIdlStaff.includes('idl');
+                    return true;
+                });
+            }
+        }
+
+        return filtered;
+    }, [nodes, filter]);
+
+    // Pagination
+    const totalPages = Math.ceil(employees.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const currentEmployees = employees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    if (loading) {
+        return (
+            <div className={`h-full flex items-center justify-center ${className}`}>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C40000]"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={`h-full flex items-center justify-center text-red-500 text-sm ${className}`}>
+                Error loading data
+            </div>
+        );
+    }
+
+    return (
+        <div className={`h-full flex flex-col ${className}`}>
+            {/* Table Body - Scrollable */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <table className="w-full">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                                Name
+                            </th>
+                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                                Dept
+                            </th>
+                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                                Title
+                            </th>
+                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                                Tenure
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {currentEmployees.map((emp, index) => (
+                            <tr key={emp.empId || index} className="hover:bg-gray-50 transition-colors">
+                                {/* Name + Avatar */}
+                                <td className="px-3 py-2">
+                                    <div className="flex items-center gap-2">
+                                        <img
+                                            src={emp.imageUrl}
+                                            alt={emp.fullName}
+                                            className="w-7 h-7 rounded-full object-cover shadow-sm shrink-0"
+                                            onError={(e) => {
+                                                const initials = emp.fullName?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+                                                const colors = ['#8B5CF6', '#F59E0B', '#10B981', '#EC4899', '#3B82F6'];
+                                                const bgColor = colors[emp.fullName?.charCodeAt(0) % colors.length || 0];
+                                                (e.target as HTMLImageElement).src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Crect fill='${encodeURIComponent(bgColor)}' width='28' height='28' rx='14'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui' font-size='10' font-weight='600' fill='white'%3E${initials}%3C/text%3E%3C/svg%3E`;
+                                            }}
+                                        />
+                                        <div className="min-w-0">
+                                            <div className="text-xs font-semibold text-[#0F172A] truncate max-w-[120px]">
+                                                {emp.fullName}
+                                            </div>
+                                            <div className="text-[9px] text-[#94A3B8]">
+                                                {emp.empId}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                {/* Department */}
+                                <td className="px-2 py-2 text-center">
+                                    <span className="text-[10px] text-[#334155] truncate block max-w-[80px] mx-auto">
+                                        {emp.dept}
+                                    </span>
+                                </td>
+
+                                {/* Title */}
+                                <td className="px-2 py-2 text-center">
+                                    <span className="text-[10px] text-[#334155] truncate block max-w-[100px] mx-auto">
+                                        {emp.title}
+                                    </span>
+                                </td>
+
+                                {/* Tenure */}
+                                <td className="px-2 py-2 text-center">
+                                    <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-medium ${emp.experience.includes('Y')
+                                            ? 'bg-purple-50 text-purple-700'
+                                            : 'bg-gray-100 text-gray-600'
+                                        }`}>
+                                        {emp.experience}
+                                    </span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Pagination - Compact */}
+            {totalPages > 1 && (
+                <div className="shrink-0 px-3 py-2 border-t border-gray-100 flex items-center justify-between bg-white">
+                    <span className="text-[10px] text-gray-500">
+                        {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, employees.length)} of {employees.length}
+                    </span>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-2 py-1 text-[10px] font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Prev
+                        </button>
+                        <span className="px-2 py-1 text-[10px] font-medium text-gray-500">
+                            {currentPage}/{totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-2 py-1 text-[10px] font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default EmployeeTable;

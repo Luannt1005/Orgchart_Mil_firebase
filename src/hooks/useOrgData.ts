@@ -119,26 +119,45 @@ export function useFilteredOrgData(groupName?: string) {
 
 /**
  * DFS filtering function to get nodes for a specific group
+ * Finds ALL nodes with matching dept/name and returns all their descendants
  */
 function filterNodesByGroup(
   nodes: OrgNode[],
   groupName: string
 ): OrgNode[] {
-  // Ưu tiên tìm node group theo dept
-  let targetNode = nodes.find(
+  // Find ALL nodes that match this group name (could be multiple with same name but different IDs)
+  const targetNodes: OrgNode[] = [];
+
+  // Priority 1: Find all group nodes by dept
+  const groupNodesByDept = nodes.filter(
     n => n.dept === groupName && (n.type === "group" || (Array.isArray(n.tags) && n.tags.includes("group")))
   );
-  // Nếu không có, fallback về logic cũ
-  if (!targetNode) {
-    targetNode = nodes.find(
+  if (groupNodesByDept.length > 0) {
+    targetNodes.push(...groupNodesByDept);
+  }
+
+  // Priority 2: Find by name if it's a group (if we haven't found any yet)
+  if (targetNodes.length === 0) {
+    const groupNodesByName = nodes.filter(
       n => n.name === groupName && Array.isArray(n.tags) && n.tags.includes('group')
     );
+    if (groupNodesByName.length > 0) {
+      targetNodes.push(...groupNodesByName);
+    }
   }
-  // Nếu vẫn không có, thử tìm node đầu tiên có dept === groupName
-  if (!targetNode) {
-    targetNode = nodes.find(n => n.dept === groupName);
+
+  // Priority 3: Find all nodes with matching dept (if still no matches)
+  if (targetNodes.length === 0) {
+    const nodesByDept = nodes.filter(n => n.dept === groupName);
+    if (nodesByDept.length > 0) {
+      targetNodes.push(...nodesByDept);
+    }
   }
-  if (!targetNode) return [];
+
+  if (targetNodes.length === 0) {
+    console.warn(`No nodes found for group: ${groupName}`);
+    return [];
+  }
 
   const filtered: OrgNode[] = [];
   const visited = new Set<string | number>();
@@ -152,30 +171,23 @@ function filterNodesByGroup(
     if (current) filtered.push(current);
 
     allNodes.forEach((n: any) => {
-      // GROUP → GROUP
-      if (
-        n.pid === nodeId &&
-        Array.isArray(n.tags) &&
-        n.tags.includes("group")
-      ) {
+      // Direct children (pid relationship) - get ALL nodes
+      if (n.pid === nodeId) {
         dfs(n.id);
       }
-      // GROUP → EMP
-      if (
-        n.pid === nodeId &&
-        Array.isArray(n.tags) &&
-        n.tags.includes("emp")
-      ) {
-        dfs(n.id);
-      }
-      // EMP → EMP
+      // Staff members (stpid relationship) - get ALL nodes
       if (n.stpid === nodeId) {
         dfs(n.id);
       }
     });
   }
 
-  dfs(targetNode.id);
+  // Traverse from ALL matching nodes
+  targetNodes.forEach(targetNode => {
+    dfs(targetNode.id);
+  });
+
+  console.log(`✅ Found ${targetNodes.length} root node(s) for "${groupName}", filtered ${filtered.length} total nodes`);
   return filtered;
 }
 

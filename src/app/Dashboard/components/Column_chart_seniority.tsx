@@ -1,0 +1,206 @@
+import React, { useMemo } from 'react';
+import { useSheetData } from '@/hooks/useSheetData';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, Tooltip } from 'recharts';
+import type { EmployeeFilter } from '../page';
+import { OrgNode } from '@/types/orgchart';
+
+interface SeniorityChartProps {
+    className?: string;
+    onFilterChange?: (filter: EmployeeFilter) => void;
+    nodes?: OrgNode[];
+    loading?: boolean;
+}
+
+// Shorter tenure bucket labels
+const TENURE_BUCKETS = [
+    { key: '< 3M', label: '< 3 months', min: 0, max: 3 },
+    { key: '3-6M', label: '3-6 months', min: 3, max: 6 },
+    { key: '6-12M', label: '6-12 months', min: 6, max: 12 },
+    { key: '1-3Y', label: '1-3 years', min: 12, max: 36 },
+    { key: '3-5Y', label: '3-5 years', min: 36, max: 60 },
+    { key: '> 5Y', label: '> 5 years', min: 60, max: Infinity }
+];
+
+// Colors
+const COLORS = {
+    Staff: '#8B5CF6',  // Purple
+    IDL: '#F59E0B'     // Orange
+};
+
+const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChange, nodes: propNodes, loading: propLoading }) => {
+    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
+
+    const nodes = propNodes || fetchedNodes;
+    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+
+    // Helper function to calculate months from joining date
+    const calculateMonthsFromDate = (joiningDate: string | number): number => {
+        if (!joiningDate) return 0;
+
+        let startDate: Date;
+
+        if (typeof joiningDate === "number" || /^\d+$/.test(String(joiningDate))) {
+            const excelEpoch = new Date(1899, 11, 30);
+            startDate = new Date(excelEpoch.getTime() + Number(joiningDate) * 86400000);
+        } else if (String(joiningDate).includes("/")) {
+            const [day, month, year] = String(joiningDate).split("/").map(Number);
+            startDate = new Date(year, month - 1, day);
+        } else {
+            startDate = new Date(joiningDate);
+        }
+
+        if (isNaN(startDate.getTime())) return 0;
+
+        const now = new Date();
+        let years = now.getFullYear() - startDate.getFullYear();
+        let months = now.getMonth() - startDate.getMonth();
+
+        if (now.getDate() < startDate.getDate()) months--;
+        if (months < 0) { years--; months += 12; }
+
+        return years * 12 + months;
+    };
+
+    // Process data
+    const chartData = useMemo(() => {
+        if (!nodes || nodes.length === 0) return [];
+
+        const buckets = TENURE_BUCKETS.map(bucket => ({
+            name: bucket.key,
+            fullName: bucket.label,
+            Staff: 0,
+            IDL: 0,
+            total: 0,
+            min: bucket.min,
+            max: bucket.max
+        }));
+
+        nodes.forEach((node: any) => {
+            const joiningDate = node['Joining\r\n Date'] || node['Joining Date'] || '';
+            if (!joiningDate) return;
+
+            const dlIdlStaff = (node['DL/IDL/Staff'] || '').toLowerCase();
+            const totalMonths = calculateMonthsFromDate(joiningDate);
+
+            for (let i = 0; i < TENURE_BUCKETS.length; i++) {
+                const bucket = TENURE_BUCKETS[i];
+                if (totalMonths >= bucket.min && totalMonths < bucket.max) {
+                    if (dlIdlStaff.includes('staff')) {
+                        buckets[i].Staff++;
+                    } else if (dlIdlStaff.includes('idl')) {
+                        buckets[i].IDL++;
+                    }
+                    buckets[i].total = buckets[i].Staff + buckets[i].IDL;
+                    break;
+                }
+            }
+        });
+
+        return buckets;
+    }, [nodes]);
+
+    const totalEmployees = chartData.reduce((sum, item) => sum + item.Staff + item.IDL, 0);
+
+    // Compact legend
+    const renderLegend = () => (
+        <div className="flex justify-center gap-4 mb-2">
+            <button
+                className="flex items-center gap-1.5 text-xs hover:opacity-70 transition-opacity"
+                onClick={() => onFilterChange?.({ type: 'staff', value: 'Staff', label: 'Type: Staff' })}
+            >
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.Staff }}></span>
+                <span className="text-[#334155] font-medium">Staff</span>
+            </button>
+            <button
+                className="flex items-center gap-1.5 text-xs hover:opacity-70 transition-opacity"
+                onClick={() => onFilterChange?.({ type: 'idl', value: 'IDL', label: 'Type: IDL' })}
+            >
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.IDL }}></span>
+                <span className="text-[#334155] font-medium">IDL</span>
+            </button>
+        </div>
+    );
+
+    if (loading) {
+        return (
+            <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col ${className}`}>
+                <div className="flex items-center justify-center flex-1">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C40000]"></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col ${className}`}>
+                <div className="text-center text-red-500 flex-1 flex items-center justify-center text-sm">
+                    Error loading data
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col min-h-0 ${className}`}>
+            {/* Header */}
+            <div className="shrink-0 mb-1">
+                <h3 className="text-sm font-semibold text-[#0F172A]">Headcount by Tenure</h3>
+                <p className="text-[10px] text-[#64748B]">{totalEmployees.toLocaleString()} employees</p>
+            </div>
+
+            {/* Legend */}
+            <div className="shrink-0">
+                {renderLegend()}
+            </div>
+
+            {/* Chart */}
+            <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                        data={chartData}
+                        margin={{ top: 20, right: 10, left: -10, bottom: 5 }}
+                    >
+                        <XAxis
+                            dataKey="name"
+                            tick={{ fill: '#64748B', fontSize: 10 }}
+                            axisLine={{ stroke: '#E5E7EB' }}
+                            tickLine={false}
+                        />
+                        <YAxis
+                            tick={{ fill: '#64748B', fontSize: 10 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={30}
+                        />
+                        <Tooltip
+                            contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            formatter={(value: any, name: any) => [value, name]}
+                            labelFormatter={(label) => chartData.find(d => d.name === label)?.fullName || label}
+                        />
+                        <Bar
+                            dataKey="Staff"
+                            stackId="a"
+                            fill={COLORS.Staff}
+                            radius={[0, 0, 0, 0]}
+                        />
+                        <Bar
+                            dataKey="IDL"
+                            stackId="a"
+                            fill={COLORS.IDL}
+                            radius={[4, 4, 0, 0]}
+                        >
+                            <LabelList
+                                dataKey="total"
+                                position="top"
+                                style={{ fill: '#0F172A', fontWeight: 600, fontSize: 10 }}
+                            />
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+};
+
+export default SeniorityChart;

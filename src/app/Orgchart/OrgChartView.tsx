@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useMemo, useCallback } from "react";
 import OrgChart from "@balkangraph/orgchart.js";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, query, writeBatch, doc } from "firebase/firestore";
-import { apiClient } from "@/lib/api-client";
-import { UPDATE_NODE_API, REMOVE_NODE_API, ADD_DEPARTMENT_API } from "@/constant/api";
 import { patchOrgChartTemplates } from "./OrgChartTemplates";
 import LoadingScreen from "@/components/loading-screen";
+import { useFilteredOrgData } from "@/hooks/useOrgData";
 import "./OrgChart.css";
 
 interface OrgChartProps {
@@ -34,61 +31,41 @@ interface OrgChartNode {
 export default function OrgChartView({ selectedGroup }: OrgChartProps) {
   const treeRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
-  const [nodes, setNodes] = useState<OrgChartNode[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // Load data from API
-  const loadOrgchartData = async () => {
-    setLoading(true);
-    try {
-      const url = selectedGroup && selectedGroup !== "all"
-        ? `/api/orgchart?dept=${encodeURIComponent(selectedGroup)}`
-        : "/api/orgchart";
+  // Use SWR cached data with client-side filtering
+  // selectedGroup === "all" means show all data, otherwise filter by group
+  const groupToFilter = selectedGroup === "all" ? undefined : selectedGroup;
+  const { nodes: rawNodes, loading, mutate } = useFilteredOrgData(groupToFilter);
 
-      const response = await fetch(url);
-      const result = await response.json();
+  // Transform and memoize nodes for OrgChart compatibility
+  const nodes = useMemo(() => {
+    return rawNodes.map((item: any) => ({
+      id: item.id,
+      pid: item.pid || null,
+      stpid: item.stpid || null,
+      name: item.name || "",
+      title: item.title || "",
+      image: item.image || item.img || null,
+      tags: Array.isArray(item.tags)
+        ? item.tags
+        : typeof item.tags === 'string'
+          ? JSON.parse(item.tags || '[]')
+          : [],
+      orig_pid: item.orig_pid || null,
+      dept: item.dept || null,
+      BU: item.BU || null,
+      type: item.type || "",
+      location: item.location || null,
+      description: item.description || "",
+      joiningDate: item.joiningDate || ""
+    } as OrgChartNode));
+  }, [rawNodes]);
 
-      if (result.success) {
-        const data = result.data.map((item: any) => ({
-          id: item.id,
-          pid: item.pid || null,
-          stpid: item.stpid || null,
-          name: item.name || "",
-          title: item.title || "",
-          image: item.image || null,
-          tags: Array.isArray(item.tags)
-            ? item.tags
-            : typeof item.tags === 'string'
-              ? JSON.parse(item.tags || '[]')
-              : [],
-          orig_pid: item.orig_pid || null,
-          dept: item.dept || null,
-          BU: item.BU || null,
-          type: item.type || "",
-          location: item.location || null,
-          description: item.description || "",
-          joiningDate: item.joiningDate || ""
-        } as OrgChartNode));
-
-        setNodes(data);
-      } else {
-        console.error("Failed to load orgchart data:", result.error);
-      }
-    } catch (error) {
-      console.error("Failed to load orgchart data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Revalidate data
-  const revalidate = async () => {
-    await loadOrgchartData();
-  };
-
-  useEffect(() => {
-    loadOrgchartData();
-  }, [selectedGroup]);
+  // Revalidate data after mutations (using SWR mutate)
+  const revalidateData = useCallback(async () => {
+    console.log("🔄 Revalidating org data after mutation...");
+    await mutate();
+  }, [mutate]);
 
   // Listen for Ctrl key
   useEffect(() => {
@@ -142,7 +119,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
       const result = await response.json();
       if (result.success) {
-        await revalidate();
+        await revalidateData();
       } else {
         console.error("Failed to add department:", result.error);
       }
@@ -169,7 +146,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
       collapse: { level: 1, allChildren: true },
       scaleInitial: 1,
       enableSearch: true,
-      enableAI: false,
+      // enableAI: false,
       enableDragDrop: false,
       layout: OrgChart.normal,
       template: "big",
@@ -250,7 +227,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
           const result = await response.json();
           if (result.success) {
-            await revalidate();
+            await revalidateData();
           } else {
             console.error("Failed to update node:", result.error);
           }
@@ -306,7 +283,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
             const result = await response.json();
             if (result.success) {
-              await revalidate();
+              await revalidateData();
             } else {
               console.error("Drop update failed:", result.error);
             }
@@ -342,7 +319,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
           const result = await response.json();
           if (result.success) {
-            await revalidate();
+            await revalidateData();
           } else {
             console.error("Failed to remove node:", result.error);
           }

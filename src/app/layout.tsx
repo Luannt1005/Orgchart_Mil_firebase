@@ -25,8 +25,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} bg-gray-50`}>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} bg-gray-50`}
+        suppressHydrationWarning
+      >
         <AppHeader />
         <main className="min-h-screen flex flex-col w-full" style={{ paddingTop: '75px' }}>
           <div className="flex-1">

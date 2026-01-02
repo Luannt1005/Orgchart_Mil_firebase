@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef, useMemo } from "react";
 import OrgChartView from "./OrgChartView";
+import { useOrgData } from "@/hooks/useOrgData";
 import "@/styles/admin-layout.css";
 
 /**
@@ -37,37 +38,24 @@ function OrgChartSkeleton() {
 
 /**
  * Tactical Command Center Interface
+ * Optimized with SWR caching - data persists across navigation
  */
 function OrgChartPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const currentSector = searchParams.get("group") || "all";
 
-  const [sectorRegistry, setSectorRegistry] = useState<string[]>([]);
-  const [isSyncing, setIsSyncing] = useState(true);
+  // Use SWR cached data instead of direct fetch
+  const { nodes, groups, loading: isOrgDataLoading } = useOrgData();
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sectorQuery, setSectorQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const acquireSectorData = async () => {
-      try {
-        const response = await fetch("/api/orgchart");
-        const json = await response.json();
-        if (json.success && json.data) {
-          const uniqueDepts = Array.from(
-            new Set(json.data.map((item: any) => item.dept).filter((d: any) => typeof d === 'string' && d.trim() !== ""))
-          ) as string[];
-          setSectorRegistry(uniqueDepts.sort());
-        }
-      } catch (err) {
-        console.error("SYSTEM CRITICAL: FAILED TO ACQUIRE SECTOR REGISTRY", err);
-      } finally {
-        setIsSyncing(false);
-      }
-    };
-    acquireSectorData();
-  }, []);
+  // Memoize department list from cached data (ensure only valid strings)
+  const sectorRegistry = useMemo(() => {
+    return (groups || []).filter((g): g is string => typeof g === 'string' && g.trim() !== '');
+  }, [groups]);
 
   useEffect(() => {
     const handleOutsideInteraction = (event: MouseEvent) => {
@@ -92,8 +80,6 @@ function OrgChartPageContent() {
     s.toLowerCase().includes(sectorQuery.toLowerCase())
   );
 
-  const activeSectorTitle = currentSector === "all" ? "GLOBAL ENTERPRISE MAP" : currentSector;
-
   return (
     <div className="mil-container flex flex-col h-screen overflow-hidden p-0! bg-[#f2f2f2]">
       {/* Simplified Header - Filter Only */}
@@ -103,6 +89,13 @@ function OrgChartPageContent() {
             <div className="space-y-1">
               <div className="flex items-center justify-between px-1">
                 <label className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] leading-none">Filter by Department</label>
+                {/* Cache indicator */}
+                {!isOrgDataLoading && nodes.length > 0 && (
+                  <span className="text-[9px] text-green-500 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                    Cached
+                  </span>
+                )}
               </div>
 
               <button
@@ -150,16 +143,19 @@ function OrgChartPageContent() {
                     {currentSector === "all" && <div className="w-1.5 h-1.5 rounded-full bg-[#DB011C]"></div>}
                   </button>
 
-                  {filteredSectors.map((sector) => (
-                    <button
-                      key={sector}
-                      onClick={() => dispatchSectorChange(sector)}
-                      className={`w-full px-5 py-4 text-left text-sm font-semibold transition-all flex items-center justify-between border-t border-gray-50/50 ${currentSector === sector ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
-                    >
-                      <span className="truncate pr-4">{sector}</span>
-                      {currentSector === sector && <div className="w-1.5 h-1.5 rounded-full bg-[#DB011C]"></div>}
-                    </button>
-                  ))}
+                  {filteredSectors.map((sector) => {
+                    if (!sector) return null;
+                    return (
+                      <button
+                        key={sector}
+                        onClick={() => dispatchSectorChange(sector)}
+                        className={`w-full px-5 py-4 text-left text-sm font-semibold transition-all flex items-center justify-between border-t border-gray-50/50 ${currentSector === sector ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
+                      >
+                        <span className="truncate pr-4">{sector}</span>
+                        {currentSector === sector && <div className="w-1.5 h-1.5 rounded-full bg-[#DB011C]"></div>}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

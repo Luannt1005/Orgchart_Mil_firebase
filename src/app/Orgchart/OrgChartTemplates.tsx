@@ -114,6 +114,8 @@ export function patchOrgChartTemplates() {
 </text>
 `;
 
+  OrgChart.templates.big.link =
+    '<path stroke-linejoin="round" stroke="#000" stroke-width="2px" fill="none" d="M{xa},{ya} {xb},{yb} {xc},{yc} L{xd},{yd}" />';
   // ------------------------------
   // Hide "up" button
   // ------------------------------
