@@ -136,7 +136,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Row 2: Charts (Donut + Seniority) */}
-                        <div className="h-72 grid grid-cols-2 gap-4">
+                        <div className="flex-[0.4] grid grid-cols-2 gap-4">
                             <DonutChart
                                 onFilterChange={handleFilterChange}
                                 nodes={dashboardNodes}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Row 3: BU Org Chart */}
-                        <div className="h-96">
+                        <div className="flex-[0.6]">
                             <BUOrg3Chart
                                 nodes={dashboardNodes}
                                 loading={nodesLoading}
@@ -159,10 +159,11 @@ export default function DashboardPage() {
                     </div>
 
                     {/* ===== RIGHT COLUMN (5 cols) ===== */}
-                    <div className="col-span-5 flex flex-col gap-4 min-h-0">
+                    <div className="col-span-5 flex flex-col gap-4 min-h-0 h-full">
+
                         {/* Employee Table (main) */}
                         <div className="min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                            <div className="p-2 flex items-center justify-between">
+                            <div className="px-4 pt-3 pb-2 shrink-0 flex items-center justify-between">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Employee Roster
                                 </h2>
@@ -181,13 +182,13 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Upcoming Resignations */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                            <div className="px-4 py-3 border-b border-gray-100 shrink-0">
+                        <div className="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                            <div className="px-4 pt-3 pb-2 shrink-0">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Upcoming Resignations
                                 </h2>
                             </div>
-                            <div>
+                            <div className="flex-1 min-h-0 overflow-hidden">
                                 <UpcomingResignTable
                                     nodes={dashboardNodes}
                                     loading={nodesLoading}

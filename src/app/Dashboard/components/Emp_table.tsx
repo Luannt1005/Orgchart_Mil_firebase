@@ -9,7 +9,7 @@ interface EmployeeTableProps {
     loading?: boolean;
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
 
 const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes, loading = false }) => {
     // Data is now passed from parent - no more independent fetching
