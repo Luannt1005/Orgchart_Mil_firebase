@@ -42,9 +42,12 @@ export default function DashboardPage() {
         setSelectedManagerName('');
     };
 
-    // Calculate hierarchical nodes
+    // Calculate hierarchical nodes - always returns an array
     const dashboardNodes = useMemo(() => {
-        if (!selectedManagerId || !nodes || nodes.length === 0) {
+        if (!nodes || nodes.length === 0) {
+            return [];
+        }
+        if (!selectedManagerId) {
             return nodes;
         }
         const managerNode = nodes.find(n => String(n.id) === String(selectedManagerId));
@@ -54,7 +57,7 @@ export default function DashboardPage() {
 
     return (
         /* ===== PAGE WRAPPER - 100vh NO SCROLL ===== */
-        <div className="h-screen overflow-hidden flex flex-col bg-[#F5F7FA]">
+        <div className="overflow-hidden flex flex-col bg-[#F5F7FA]">
 
             {/* ===== HEADER BAR (56px) ===== */}
             <header className="h-14 shrink-0 bg-white border-b border-gray-200 px-5 flex items-center justify-between">
@@ -133,7 +136,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Row 2: Charts (Donut + Seniority) */}
-                        <div className="flex-1 min-h-0 grid grid-cols-2 gap-4">
+                        <div className="h-72 grid grid-cols-2 gap-4">
                             <DonutChart
                                 onFilterChange={handleFilterChange}
                                 nodes={dashboardNodes}
@@ -147,7 +150,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Row 3: BU Org Chart */}
-                        <div className="flex-[0.7] min-h-0">
+                        <div className="h-96">
                             <BUOrg3Chart
                                 nodes={dashboardNodes}
                                 loading={nodesLoading}
@@ -157,10 +160,9 @@ export default function DashboardPage() {
 
                     {/* ===== RIGHT COLUMN (5 cols) ===== */}
                     <div className="col-span-5 flex flex-col gap-4 min-h-0">
-
                         {/* Employee Table (main) */}
-                        <div className="flex-[2] min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                            <div className="px-4 py-3 border-b border-gray-100 shrink-0 flex items-center justify-between">
+                        <div className="min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                            <div className="p-2 flex items-center justify-between">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Employee Roster
                                 </h2>
@@ -179,13 +181,13 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Upcoming Resignations */}
-                        <div className="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div className="px-4 py-3 border-b border-gray-100 shrink-0">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Upcoming Resignations
                                 </h2>
                             </div>
-                            <div className="flex-1 min-h-0 overflow-hidden">
+                            <div>
                                 <UpcomingResignTable
                                     nodes={dashboardNodes}
                                     loading={nodesLoading}

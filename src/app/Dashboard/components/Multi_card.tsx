@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import type { EmployeeFilter } from '../page';
 import { OrgNode } from '@/types/orgchart';
 
@@ -15,7 +14,7 @@ interface StatsCardsProps {
     className?: string;
     onFilterChange?: (filter: EmployeeFilter) => void;
     activeFilter?: EmployeeFilter;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
@@ -58,11 +57,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, loading, onClick, isA
     );
 };
 
-const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, activeFilter, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, activeFilter, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
 
     // Helper to count by job title
     const countByTitle = (titleKeyword: string) => {

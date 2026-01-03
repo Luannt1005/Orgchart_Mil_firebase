@@ -10,6 +10,10 @@ import {
   deleteDoc,
   addDoc,
 } from "firebase/firestore";
+import { getCachedData, invalidateCachePrefix } from "@/lib/cache";
+
+// Cache TTL: 5 minutes for employee list
+const EMPLOYEES_CACHE_TTL = 5 * 60 * 1000;
 
 export async function GET(req: Request) {
   try {
@@ -18,7 +22,7 @@ export async function GET(req: Request) {
 
     console.log("GET /api/sheet - id:", id);
 
-    // Nếu có ID cụ thể, lấy 1 employee
+    // If specific ID requested, fetch single doc (no cache for single docs)
     if (id) {
       const docRef = doc(db, "employees", id);
       const docSnap = await getDoc(docRef);
@@ -36,32 +40,44 @@ export async function GET(req: Request) {
       });
     }
 
-    // Lấy tất cả employees
-    const employeesRef = collection(db, "employees");
-    const q = query(employeesRef);
-    const querySnapshot = await getDocs(q);
+    // Use cached data for full employee list - reduces Firebase reads significantly
+    const cachedResult = await getCachedData(
+      'employees_all',
+      async () => {
+        console.log("📡 [Cache MISS] Fetching employees from Firebase...");
+        const employeesRef = collection(db, "employees");
+        const q = query(employeesRef);
+        const querySnapshot = await getDocs(q);
 
-    const employees: any[] = [];
-    const headersSet = new Set<string>();
+        const employees: any[] = [];
+        const headersSet = new Set<string>();
 
-    querySnapshot.forEach((doc) => {
-      const data = { id: doc.id, ...doc.data() };
-      employees.push(data);
+        querySnapshot.forEach((doc) => {
+          const data = { id: doc.id, ...doc.data() };
+          employees.push(data);
+          Object.keys(data).forEach((key) => headersSet.add(key));
+        });
 
-      // Collect all headers
-      Object.keys(data).forEach((key) => headersSet.add(key));
-    });
+        console.log(`✅ Loaded ${employees.length} employees from Firebase`);
+        return { employees, headers: Array.from(headersSet) };
+      },
+      EMPLOYEES_CACHE_TTL
+    );
 
-    const headers = Array.from(headersSet);
-
-    console.log("Found employees:", employees.length);
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
-      total: employees.length,
-      headers: headers,
-      data: employees
+      total: cachedResult.employees.length,
+      headers: cachedResult.headers,
+      data: cachedResult.employees
     });
+
+    // Add cache control headers for browser caching
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=60, stale-while-revalidate=120"
+    );
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("GET /api/sheet error:", message);
@@ -93,6 +109,9 @@ export async function POST(req: Request) {
         createdAt: new Date(),
         updatedAt: new Date()
       });
+
+      // Invalidate cache after adding new employee
+      invalidateCachePrefix('employees');
 
       return NextResponse.json({
         success: true,
@@ -135,6 +154,9 @@ export async function PUT(req: Request) {
       updatedAt: new Date()
     });
 
+    // Invalidate cache after updating employee
+    invalidateCachePrefix('employees');
+
     return NextResponse.json({
       success: true,
       message: "Employee updated successfully"
@@ -165,6 +187,9 @@ export async function DELETE(req: Request) {
 
     const docRef = doc(db, "employees", id);
     await deleteDoc(docRef);
+
+    // Invalidate cache after deleting employee
+    invalidateCachePrefix('employees');
 
     return NextResponse.json({
       success: true,

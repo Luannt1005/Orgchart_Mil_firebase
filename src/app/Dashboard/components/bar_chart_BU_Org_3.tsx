@@ -1,19 +1,16 @@
 import React, { useMemo } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, Tooltip } from 'recharts';
 import { OrgNode } from '@/types/orgchart';
 
 interface BUOrg3ChartProps {
     className?: string;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
-const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
 
     // Process data: group by BU Org 3
     const chartData = useMemo(() => {

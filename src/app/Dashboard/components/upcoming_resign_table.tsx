@@ -1,18 +1,15 @@
 import React, { useMemo } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import { OrgNode } from '@/types/orgchart';
 
 interface UpcomingResignTableProps {
     className?: string;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
-const UpcomingResignTable: React.FC<UpcomingResignTableProps> = ({ className, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const UpcomingResignTable: React.FC<UpcomingResignTableProps> = ({ className, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
 
     // Format date from Excel serial or string
     const formatDate = (dateValue: string | number): string => {
@@ -87,7 +84,7 @@ const UpcomingResignTable: React.FC<UpcomingResignTableProps> = ({ className, no
     }
 
     return (
-        <div className={`h-full flex flex-col overflow-hidden ${className}`}>
+        <div className={`h-full flex flex-col ${className}`}>
             {/* Compact List */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="divide-y divide-gray-50">

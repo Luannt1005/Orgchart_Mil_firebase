@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LabelList, Tooltip } from 'recharts';
 import type { EmployeeFilter } from '../page';
 import { OrgNode } from '@/types/orgchart';
@@ -7,7 +6,7 @@ import { OrgNode } from '@/types/orgchart';
 interface SeniorityChartProps {
     className?: string;
     onFilterChange?: (filter: EmployeeFilter) => void;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
@@ -27,11 +26,9 @@ const COLORS = {
     IDL: '#F59E0B'     // Orange
 };
 
-const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChange, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChange, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
 
     // Helper function to calculate months from joining date
     const calculateMonthsFromDate = (joiningDate: string | number): number => {

@@ -1,22 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import type { EmployeeFilter } from '../page';
 import { OrgNode } from '@/types/orgchart';
 
 interface EmployeeTableProps {
     className?: string;
     filter?: EmployeeFilter;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
 const ITEMS_PER_PAGE = 8;
 
-const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
@@ -132,27 +129,27 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes:
             {/* Table Body - Scrollable */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <table className="w-full">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                        <tr>
-                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                    <thead className="border-b border-gray-200 sticky top-0 z-10">
+                        <tr className="[&>th]:p-2!">
+                            <th className="px-3 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Name
                             </th>
-                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Dept
                             </th>
-                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Title
                             </th>
-                            <th className="px-2 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                            <th className="px-2 text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                                 Tenure
                             </th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {currentEmployees.map((emp, index) => (
-                            <tr key={emp.empId || index} className="hover:bg-gray-50 transition-colors">
+                            <tr key={emp.empId || index} className="hover:bg-gray-50 transition-colors [&>td]:p-2!">
                                 {/* Name + Avatar */}
-                                <td className="px-3 py-2">
+                                <td className="px-3">
                                     <div className="flex items-center gap-2">
                                         <img
                                             src={emp.imageUrl}
@@ -177,24 +174,24 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes:
                                 </td>
 
                                 {/* Department */}
-                                <td className="px-2 py-2 text-center">
+                                <td className="px-2 text-center">
                                     <span className="text-[10px] text-[#334155] truncate block max-w-[80px] mx-auto">
                                         {emp.dept}
                                     </span>
                                 </td>
 
                                 {/* Title */}
-                                <td className="px-2 py-2 text-center">
+                                <td className="px-2 text-center">
                                     <span className="text-[10px] text-[#334155] truncate block max-w-[100px] mx-auto">
                                         {emp.title}
                                     </span>
                                 </td>
 
                                 {/* Tenure */}
-                                <td className="px-2 py-2 text-center">
+                                <td className="px-2 text-center">
                                     <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-medium ${emp.experience.includes('Y')
-                                            ? 'bg-purple-50 text-purple-700'
-                                            : 'bg-gray-100 text-gray-600'
+                                        ? 'bg-purple-50 text-purple-700'
+                                        : 'bg-gray-100 text-gray-600'
                                         }`}>
                                         {emp.experience}
                                     </span>

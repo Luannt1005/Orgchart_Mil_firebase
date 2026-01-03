@@ -1,27 +1,40 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query } from "firebase/firestore";
+import { getCachedData } from "@/lib/cache";
+
+// Cache TTL: 5 minutes for orgchart data
+const ORGCHART_CACHE_TTL = 5 * 60 * 1000;
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const dept = searchParams.get("dept");
 
-    const orgchartRef = collection(db, "Orgchart_data");
-    const snapshot = await getDocs(query(orgchartRef));
+    // Use cached data for orgchart collection - reduces Firebase reads significantly
+    let data = await getCachedData(
+      'orgchart_all',
+      async () => {
+        console.log("📡 [Cache MISS] Fetching Orgchart_data from Firebase...");
+        const orgchartRef = collection(db, "Orgchart_data");
+        const snapshot = await getDocs(query(orgchartRef));
 
-    // Chuẩn hóa thành mảng
-    let data = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data()
-    })).filter((n: any) => typeof n.dept === "string" && n.dept.trim() !== "");
+        const nodes = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })).filter((n: any) => typeof n.dept === "string" && n.dept.trim() !== "");
 
-    // Nếu có dept, chỉ trả về các node thuộc dept đó
+        console.log(`✅ Loaded ${nodes.length} nodes from Orgchart_data`);
+        return nodes;
+      },
+      ORGCHART_CACHE_TTL
+    );
+
+    // Filter by department if requested (client-side filter on cached data)
     if (dept && dept !== "all") {
       data = data.filter((n: any) => n.dept === dept);
     }
 
-    // Trả về response chuẩn
     const response = NextResponse.json(
       {
         data,

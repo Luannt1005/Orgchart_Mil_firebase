@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useSheetData } from '@/hooks/useSheetData';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
 import type { EmployeeFilter } from '../page';
 import { OrgNode } from '@/types/orgchart';
@@ -7,7 +6,7 @@ import { OrgNode } from '@/types/orgchart';
 interface DonutChartProps {
     className?: string;
     onFilterChange?: (filter: EmployeeFilter) => void;
-    nodes?: OrgNode[];
+    nodes: OrgNode[];  // Required prop
     loading?: boolean;
 }
 
@@ -18,11 +17,9 @@ const COLORS = {
     DL: '#3B82F6'      // Blue
 };
 
-const DonutChart: React.FC<DonutChartProps> = ({ className, onFilterChange, nodes: propNodes, loading: propLoading }) => {
-    const { nodes: fetchedNodes, loading: fetchedLoading, error } = useSheetData();
-
-    const nodes = propNodes || fetchedNodes;
-    const loading = propLoading !== undefined ? propLoading : fetchedLoading;
+const DonutChart: React.FC<DonutChartProps> = ({ className, onFilterChange, nodes, loading = false }) => {
+    // Data is now passed from parent - no more independent fetching
+    const error = null; // Error handling moved to parent
 
     // Calculate counts by type
     const chartData = useMemo(() => {

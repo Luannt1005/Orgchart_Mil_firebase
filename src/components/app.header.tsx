@@ -4,16 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useOrgData } from "@/hooks/useOrgData";
 import "@/styles/appheader.css";
 
 function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { groups, loading } = useOrgData();
 
-  const [search, setSearch] = useState("");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  // State for user menu and mobile menu
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<{ username: string; full_name: string; role?: string; uid?: string } | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -95,12 +92,7 @@ function AppHeader() {
     window.location.href = "/login";
   };
 
-  /**
-   * Filter theo search
-   */
-  const filteredGroups = groups.filter(name =>
-    name?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Logout handler - no need for groups/filteredGroups since they were unused
 
   return (
     <>
