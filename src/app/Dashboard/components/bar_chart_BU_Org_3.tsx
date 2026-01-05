@@ -24,7 +24,7 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
             groupedData[buOrg3]++;
         });
 
-        // Take top 8 departments
+        // Return all departments
         return Object.entries(groupedData)
             .map(([name, count]) => ({
                 name: name.length > 12 ? name.slice(0, 12) + '...' : name,
@@ -32,8 +32,7 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
                 count
             }))
             .filter(item => item.fullName !== 'Unknown' && item.count > 0)
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 8);
+            .sort((a, b) => b.count - a.count);
     }, [nodes]);
 
     if (loading) {
@@ -56,7 +55,7 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
         <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col min-h-0 ${className}`}>
             {/* Header */}
             <div className="shrink-0 mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-[#0F172A]">Departments</h3>
+                <h3 className="text-[22px] font-bold text-[#0F172A]">Departments</h3>
                 <span className="text-[10px] text-[#64748B]">{chartData.length} depts</span>
             </div>
 
@@ -65,38 +64,44 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={chartData}
-                        margin={{ top: 15, right: 10, left: -10, bottom: 35 }}
+                        margin={{ top: 5, right: 10, left: 10, bottom: 15 }}
                     >
+                        <defs>
+                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#3B82F6" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#6366F1" stopOpacity={1} />
+                            </linearGradient>
+                        </defs>
                         <XAxis
                             dataKey="name"
                             angle={-35}
                             textAnchor="end"
-                            height={50}
+                            height={45}
                             interval={0}
-                            tick={{ fill: '#64748B', fontSize: 9 }}
+                            tick={{
+                                fill: '#1E293B',
+                                fontSize: 11,
+                                fontWeight: 700
+                            }}
                             axisLine={{ stroke: '#E5E7EB' }}
                             tickLine={false}
                         />
-                        <YAxis
-                            tick={{ fill: '#64748B', fontSize: 9 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={25}
-                        />
                         <Tooltip
-                            contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                            formatter={(value: number | undefined) => [value ?? 0, 'Count']}
+                            contentStyle={{ fontSize: 12, borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            formatter={(value: number | undefined) => [value ?? 0, 'Employees']}
                             labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                         />
                         <Bar
                             dataKey="count"
-                            fill="#3B82F6"
-                            radius={[4, 4, 0, 0]}
+                            fill="url(#barGradient)"
+                            radius={[6, 6, 0, 0]}
+                            barSize={50}
                         >
                             <LabelList
                                 dataKey="count"
                                 position="top"
-                                style={{ fill: '#0F172A', fontWeight: 600, fontSize: 9 }}
+                                offset={8}
+                                style={{ fill: '#0F172A', fontWeight: 800, fontSize: 11 }}
                             />
                         </Bar>
                     </BarChart>

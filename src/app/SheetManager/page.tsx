@@ -109,7 +109,12 @@ const formatDateToISO = (value: string): string => {
   }
 };
 
-const SheetManager = () => {
+interface SheetManagerProps {
+  initialShowApprovalOnly?: boolean;
+  enableApproval?: boolean;
+}
+
+const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false }: SheetManagerProps) => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
   const [originalRows, setOriginalRows] = useState<SheetRow[]>([]);
@@ -123,7 +128,7 @@ const SheetManager = () => {
   const [modifiedRows, setModifiedRows] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
-  const [showApprovalOnly, setShowApprovalOnly] = useState(false);
+  const [showApprovalOnly, setShowApprovalOnly] = useState(initialShowApprovalOnly);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
@@ -331,19 +336,21 @@ const SheetManager = () => {
           <h1>Milwaukee Tool HR Registry</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowApprovalOnly(!showApprovalOnly)}
-            className={`${styles.btnReset} flex items-center gap-2`}
-            style={{ backgroundColor: showApprovalOnly ? '#f59e0b' : '#6c757d' }}
-          >
-            <ClockIcon className="w-4 h-4" />
-            {showApprovalOnly ? 'Hide Requests' : 'Review Changes'}
-            {pendingApprovals.length > 0 && !showApprovalOnly && (
-              <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
-                {pendingApprovals.length}
-              </span>
-            )}
-          </button>
+          {enableApproval && (
+            <button
+              onClick={() => setShowApprovalOnly(!showApprovalOnly)}
+              className={`${styles.btnReset} flex items-center gap-2`}
+              style={{ backgroundColor: showApprovalOnly ? '#f59e0b' : '#6c757d' }}
+            >
+              <ClockIcon className="w-4 h-4" />
+              {showApprovalOnly ? 'Hide Requests' : 'Review Changes'}
+              {pendingApprovals.length > 0 && !showApprovalOnly && (
+                <span className="ml-1 bg-red-500 text-white text-[10px] px-1.5 rounded-full">
+                  {pendingApprovals.length}
+                </span>
+              )}
+            </button>
+          )}
 
           <button
             onClick={handleAddRow}

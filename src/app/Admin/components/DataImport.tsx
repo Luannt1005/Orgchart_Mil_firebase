@@ -1,0 +1,171 @@
+"use client";
+
+import { useState, useRef } from "react";
+import {
+    CloudArrowUpIcon,
+    DocumentIcon,
+    CheckCircleIcon,
+    ExclamationCircleIcon
+} from "@heroicons/react/24/outline";
+
+export default function DataImport() {
+    const [file, setFile] = useState<File | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [importResult, setImportResult] = useState<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileChange = (selectedFile: File | null) => {
+        if (selectedFile && (selectedFile.name.endsWith(".xlsx") || selectedFile.name.endsWith(".xls"))) {
+            setFile(selectedFile);
+            setError(null);
+            setSuccess(null);
+            setImportResult(null);
+        } else {
+            setError("Please select a valid Excel file (.xlsx)");
+            setFile(null);
+        }
+    };
+
+    const handleUpload = async () => {
+        if (!file) return;
+
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await fetch("/api/import_excel", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Upload failed");
+            }
+
+            setSuccess("Import successful!");
+            setImportResult(data);
+            setFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="h-full bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col items-center justify-center p-8">
+            <div className="max-w-md w-full">
+                <div className="text-center mb-8">
+                    <h2 className="text-xl font-bold text-gray-900">Import Organization Data</h2>
+                    <p className="text-sm text-gray-500 mt-1">Upload your Excel file to update the database</p>
+                </div>
+
+                <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDragging(false);
+                        handleFileChange(e.dataTransfer.files[0]);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`
+                        relative group cursor-pointer
+                        border-2 border-dashed rounded-xl p-8 transition-all duration-200
+                        flex flex-col items-center justify-center gap-4
+                        ${isDragging
+                            ? "border-blue-500 bg-blue-50/50"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50"
+                        }
+                    `}
+                >
+                    <div className={`
+                        p-4 rounded-full transition-colors duration-200
+                        ${isDragging ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400 group-hover:text-gray-600"}
+                    `}>
+                        <CloudArrowUpIcon className="w-8 h-8" />
+                    </div>
+
+                    <div className="text-center">
+                        <p className="text-sm font-medium text-gray-900 border-b-2 border-transparent group-hover:border-blue-500 inline-block">
+                            Click to upload
+                        </p>
+                        <span className="text-sm text-gray-500"> or drag and drop</span>
+                        <p className="text-xs text-gray-400 mt-1">XLSX or XLS files only</p>
+                    </div>
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+                        className="hidden"
+                    />
+                </div>
+
+                {/* Status Area */}
+                <div className="mt-6 space-y-4">
+                    {file && (
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg animate-in fade-in slide-in-from-top-2">
+                            <DocumentIcon className="w-5 h-5 text-blue-600" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-blue-900 truncate">{file.name}</p>
+                                <p className="text-xs text-blue-600">{(file.size / 1024).toFixed(0)} KB</p>
+                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setFile(null); }}
+                                className="text-blue-400 hover:text-blue-600"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-lg animate-in fade-in slide-in-from-top-2">
+                            <ExclamationCircleIcon className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-800">{error}</p>
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-100 rounded-lg animate-in fade-in slide-in-from-top-2">
+                            <CheckCircleIcon className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                            <div className="text-sm text-green-800">
+                                <p className="font-medium">{success}</p>
+                                {importResult?.total && (
+                                    <p className="mt-1 text-green-700">Processed {importResult.total} records.</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={handleUpload}
+                        disabled={!file || loading}
+                        className="w-full py-2.5 px-4 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-300 text-white rounded-lg font-medium text-sm transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                        {loading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>Importing...</span>
+                            </>
+                        ) : (
+                            "Start Import"
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

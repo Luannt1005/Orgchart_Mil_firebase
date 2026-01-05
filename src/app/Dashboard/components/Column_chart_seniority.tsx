@@ -139,16 +139,23 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
     }
 
     return (
-        <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col min-h-0 ${className}`}>
+        <div className={`bg-white rounded-xl shadow-sm p-1 h-full flex flex-col min-h-0 ${className}`}>
             {/* Header */}
-            <div className="shrink-0 mb-1">
-                <h3 className="text-sm font-semibold text-[#0F172A]">Headcount by Tenure</h3>
-                <p className="text-[10px] text-[#64748B]">{totalEmployees.toLocaleString()} employees</p>
-            </div>
-
-            {/* Legend */}
-            <div className="shrink-0">
-                {renderLegend()}
+            <div className="shrink-0 mb-4 flex items-center justify-between">
+                <div>
+                    <h3 className="text-[16px] pl-2 font-bold text-[#0F172A]">Headcount by Tenure</h3>
+                    <p className="text-[11px] pl-2 text-[#64748B]">{totalEmployees.toLocaleString()} employees categorized by experience</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-sm bg-[#8B5CF6]"></span>
+                        <span className="text-[11px] font-semibold text-[#334155]">Staff</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-sm bg-[#F59E0B]"></span>
+                        <span className="text-[11px] font-semibold text-[#334155]">IDL</span>
+                    </div>
+                </div>
             </div>
 
             {/* Chart */}
@@ -156,41 +163,58 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                         data={chartData}
-                        margin={{ top: 20, right: 10, left: -10, bottom: 5 }}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                     >
+                        <defs>
+                            <linearGradient id="staffGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#8B5CF6" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#A78BFA" stopOpacity={1} />
+                            </linearGradient>
+                            <linearGradient id="idlGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#F59E0B" stopOpacity={1} />
+                                <stop offset="100%" stopColor="#FBBF24" stopOpacity={1} />
+                            </linearGradient>
+                        </defs>
                         <XAxis
                             dataKey="name"
-                            tick={{ fill: '#64748B', fontSize: 10 }}
+                            tick={{
+                                fill: '#1E293B',
+                                fontSize: 11,
+                                fontWeight: 700
+                            }}
                             axisLine={{ stroke: '#E5E7EB' }}
                             tickLine={false}
                         />
-                        <YAxis
-                            tick={{ fill: '#64748B', fontSize: 10 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={30}
-                        />
                         <Tooltip
-                            contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            contentStyle={{ fontSize: 12, borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                             formatter={(value: any, name: any) => [value, name]}
                             labelFormatter={(label) => chartData.find(d => d.name === label)?.fullName || label}
                         />
                         <Bar
                             dataKey="Staff"
                             stackId="a"
-                            fill={COLORS.Staff}
+                            fill="url(#staffGradient)"
                             radius={[0, 0, 0, 0]}
-                        />
+                        >
+                            <LabelList
+                                dataKey="Staff"
+                                position="inside"
+                                style={{ fill: '#FFFFFF', fontWeight: 800, fontSize: 11 }}
+                                formatter={(value: any) => value > 0 ? value : ''}
+                            />
+                        </Bar>
                         <Bar
                             dataKey="IDL"
                             stackId="a"
-                            fill={COLORS.IDL}
-                            radius={[4, 4, 0, 0]}
+                            fill="url(#idlGradient)"
+                            radius={[6, 6, 0, 0]}
                         >
                             <LabelList
-                                dataKey="total"
+                                dataKey="IDL"
                                 position="top"
-                                style={{ fill: '#0F172A', fontWeight: 600, fontSize: 10 }}
+                                offset={8}
+                                style={{ fill: '#0F172A', fontWeight: 800, fontSize: 11 }}
+                                formatter={(value: any) => value > 0 ? value : ''}
                             />
                         </Bar>
                     </BarChart>

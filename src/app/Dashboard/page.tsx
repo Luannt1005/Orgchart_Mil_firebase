@@ -57,10 +57,10 @@ export default function DashboardPage() {
 
     return (
         /* ===== PAGE WRAPPER - 100vh NO SCROLL ===== */
-        <div className="overflow-hidden flex flex-col bg-[#F5F7FA]">
+        <div className="overflow-hidden flex flex-col bg-gray-200 pt-6">
 
             {/* ===== HEADER BAR (56px) ===== */}
-            <header className="h-14 shrink-0 bg-white border-b border-gray-200 px-5 flex items-center justify-between">
+            <header className="h-14 shrink-0 bg-gray-200 border-b border-gray-200 px-5 flex items-center justify-between">
                 {/* Left: Title */}
                 <div>
                     <h1 className="text-[22px] font-bold text-[#0F172A] leading-tight">
@@ -118,7 +118,7 @@ export default function DashboardPage() {
             </header>
 
             {/* ===== MAIN CONTENT (fills remaining height) ===== */}
-            <main className="flex-1 min-h-0 p-5">
+            <main className="flex-1 bg-gray-200 min-h-0 p-5">
                 <div className="h-full grid grid-cols-12 gap-4">
 
                     {/* ===== LEFT COLUMN (7 cols) ===== */}
@@ -127,7 +127,7 @@ export default function DashboardPage() {
                         {/* Row 1: KPI Cards (fixed height) */}
                         <div className="shrink-0">
                             <StatsCards
-                                className="grid grid-cols-6 gap-3"
+                                className="grid grid-cols-12 gap-3"
                                 onFilterChange={handleFilterChange}
                                 activeFilter={activeFilter}
                                 nodes={dashboardNodes}

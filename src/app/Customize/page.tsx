@@ -318,7 +318,7 @@ const Customize = () => {
 
 
   return (
-    <div className="w-full h-screen relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col overflow-hidden">
+    <div className="w-full h-screen relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col overflow-hidden pt-4">
       {/* Header Toolbar - Dark Theme for Better Visibility */}
       <div className="z-20 bg-gray-900/95 border-b border-gray-700 backdrop-blur-md px-6 py-4 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-4">
@@ -403,8 +403,7 @@ const Customize = () => {
       </div>
 
       {/* Main Chart Area */}
-      <div className="flex-1 relative bg-[url('/mil_bg_org.png')] bg-cover bg-center">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/60 to-gray-900/40"></div>
+      <div className="flex-1 relative">
 
         {/* Empty State */}
         {!orgId && !loadingChart && (

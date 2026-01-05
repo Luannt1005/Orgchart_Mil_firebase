@@ -18,6 +18,14 @@ interface StatsCardsProps {
     loading?: boolean;
 }
 
+interface CardInfo {
+    title: string;
+    count: number;
+    filterType: string;
+    filterValue: string;
+    label?: string;
+}
+
 // Compact StatCard for 72px height
 const StatCard: React.FC<StatCardProps> = ({ title, count, loading, onClick, isActive }) => {
     if (loading) {
@@ -93,9 +101,30 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
                 technician: 0,
                 operator: 0,
                 trainee: 0,
-                engineer: 0
+                engineer: 0,
+                staff: 0,
+                idl: 0,
+                dl: 0,
+                total: 0
             };
         }
+
+        const counts = {
+            staff: 0,
+            idl: 0,
+            dl: 0
+        };
+
+        nodes.forEach((node: any) => {
+            const dlIdlStaff = (node['DL/IDL/Staff'] || '').toLowerCase();
+            if (dlIdlStaff.includes('staff')) {
+                counts.staff++;
+            } else if (dlIdlStaff.includes('idl')) {
+                counts.idl++;
+            } else {
+                counts.dl++;
+            }
+        });
 
         return {
             specialist: countByTitle('specialist'),
@@ -109,31 +138,42 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
             technician: countByTitle('technician'),
             operator: countByTitle('operator'),
             trainee: countByTitle('trainee'),
-            engineer: countByTitle('engineer')
+            engineer: countByTitle('engineer'),
+            staff: counts.staff,
+            idl: counts.idl,
+            dl: counts.dl,
+            total: nodes.length
         };
     }, [nodes]);
 
-    // Job title cards - show top 6 by count
-    const titleCards = [
-        { title: 'Operator', count: stats.operator, filterValue: 'operator' },
-        { title: 'Technician', count: stats.technician, filterValue: 'technician' },
-        { title: 'Specialist', count: stats.specialist, filterValue: 'specialist' },
-        { title: 'Supervisor', count: stats.supervisor, filterValue: 'supervisor' },
-        { title: 'Engineer', count: stats.engineer, filterValue: 'engineer' },
-        { title: 'Manager', count: stats.manager, filterValue: 'manager' },
-        { title: 'Coordinator', count: stats.coordinator, filterValue: 'coordinator' },
-        { title: 'Director', count: stats.director, filterValue: 'director' },
-        { title: 'Shift Leader', count: stats.shiftLeader, filterValue: 'shift leader' },
-        { title: 'Line Leader', count: stats.lineLeader, filterValue: 'line leader' },
-        { title: 'WH Keeper', count: stats.warehouseKeeper, filterValue: 'warehouse keeper' },
-        { title: 'Trainee', count: stats.trainee, filterValue: 'trainee' }
+    // Job title cards
+    const coreCards: CardInfo[] = [
+        { title: 'Total', count: stats.total, filterType: 'all', filterValue: 'all', label: 'All Employees' },
+        { title: 'Staff', count: stats.staff, filterType: 'type', filterValue: 'Staff', label: 'Type: Staff' },
+        { title: 'IDL', count: stats.idl, filterType: 'type', filterValue: 'IDL', label: 'Type: IDL' },
+        { title: 'DL', count: stats.dl, filterType: 'type', filterValue: 'DL', label: 'Type: DL' },
     ];
 
-    // Sort by count and take top 6
-    const visibleCards = titleCards
-        .filter(card => card.count > 0)
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6);
+    const titleCards: CardInfo[] = [
+        { title: 'Operator', count: stats.operator, filterType: 'title', filterValue: 'operator' },
+        { title: 'Technician', count: stats.technician, filterType: 'title', filterValue: 'technician' },
+        { title: 'Specialist', count: stats.specialist, filterType: 'title', filterValue: 'specialist' },
+        { title: 'Supervisor', count: stats.supervisor, filterType: 'title', filterValue: 'supervisor' },
+        { title: 'Engineer', count: stats.engineer, filterType: 'title', filterValue: 'engineer' },
+        { title: 'Manager', count: stats.manager, filterType: 'title', filterValue: 'manager' },
+        { title: 'Coordinator', count: stats.coordinator, filterType: 'title', filterValue: 'coordinator' },
+        { title: 'Director', count: stats.director, filterType: 'title', filterValue: 'director' },
+        { title: 'Shift Leader', count: stats.shiftLeader, filterType: 'title', filterValue: 'shift leader' },
+        { title: 'Line Leader', count: stats.lineLeader, filterType: 'title', filterValue: 'line leader' },
+        { title: 'WH Keeper', count: stats.warehouseKeeper, filterType: 'title', filterValue: 'warehouse keeper' },
+        { title: 'Trainee', count: stats.trainee, filterType: 'title', filterValue: 'trainee' }
+    ];
+
+    // Combine and Filter
+    const visibleCards: CardInfo[] = [
+        ...coreCards,
+        ...titleCards.filter(card => card.count > 0).sort((a, b) => b.count - a.count)
+    ];
 
     if (error) {
         return (
@@ -154,11 +194,14 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
                     count={card.count}
                     loading={loading}
                     onClick={() => onFilterChange?.({
-                        type: 'title',
+                        type: card.filterType as any,
                         value: card.filterValue,
-                        label: card.title
+                        label: card.label || card.title
                     })}
-                    isActive={activeFilter?.type === 'title' && activeFilter?.value === card.filterValue}
+                    isActive={
+                        (card.filterType === 'all' && activeFilter?.type === 'all') ||
+                        (activeFilter?.type === card.filterType && activeFilter?.value === card.filterValue)
+                    }
                 />
             ))}
         </div>
