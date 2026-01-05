@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -14,6 +14,15 @@ import {
     ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import Image from 'next/image';
+import { preload } from 'swr';
+import { swrFetcher } from '@/lib/api-client';
+
+// API endpoints for prefetching
+const API_ENDPOINTS: { [key: string]: string } = {
+    '/Orgchart': '/api/get_data',
+    '/Dashboard': '/api/sheet',
+    '/SheetManager': '/api/sheet',
+};
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -28,6 +37,16 @@ export default function Sidebar() {
         { name: 'Customize Chart', path: '/Customize', icon: PencilSquareIcon },
         { name: 'Admin Console', path: '/Admin', icon: Cog6ToothIcon },
     ];
+
+    // Prefetch data when hovering over nav items
+    const handleMouseEnter = useCallback((path: string) => {
+        const apiEndpoint = API_ENDPOINTS[path];
+        if (apiEndpoint) {
+            preload(apiEndpoint, swrFetcher);
+        }
+        // Also prefetch the route
+        router.prefetch(path);
+    }, [router]);
 
     // Hide sidebar on auth pages
     if (['/login', '/signup'].includes(pathname)) {
@@ -80,6 +99,8 @@ export default function Sidebar() {
                         <Link
                             key={item.path}
                             href={item.path}
+                            prefetch={true}
+                            onMouseEnter={() => handleMouseEnter(item.path)}
                             className={`
                 flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 group relative overflow-hidden
                 ${isActive
@@ -103,3 +124,4 @@ export default function Sidebar() {
         </div>
     );
 }
+

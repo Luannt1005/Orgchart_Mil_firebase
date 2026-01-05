@@ -141,6 +141,15 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
       img: n.image || "",
     }));
 
+    // If chart already exists, just update the data instead of recreating
+    if (chartRef.current) {
+      console.log("♻️ Reusing existing OrgChart instance, updating data...");
+      chartRef.current.load(chartNodes);
+      return;
+    }
+
+    // Create new chart only on first mount
+    console.log("🆕 Creating new OrgChart instance...");
     const chart = new OrgChart(el, {
       mouseScrool: OrgChart.none,
       collapse: { level: 1, allChildren: true },

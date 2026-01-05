@@ -146,14 +146,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
         };
     }, [nodes]);
 
-    // Job title cards
-    const coreCards: CardInfo[] = [
-        { title: 'Total', count: stats.total, filterType: 'all', filterValue: 'all', label: 'All Employees' },
-        { title: 'Staff', count: stats.staff, filterType: 'type', filterValue: 'Staff', label: 'Type: Staff' },
-        { title: 'IDL', count: stats.idl, filterType: 'type', filterValue: 'IDL', label: 'Type: IDL' },
-        { title: 'DL', count: stats.dl, filterType: 'type', filterValue: 'DL', label: 'Type: DL' },
-    ];
-
+    // Job title cards - all 12 cards
     const titleCards: CardInfo[] = [
         { title: 'Operator', count: stats.operator, filterType: 'title', filterValue: 'operator' },
         { title: 'Technician', count: stats.technician, filterType: 'title', filterValue: 'technician' },
@@ -169,11 +162,8 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
         { title: 'Trainee', count: stats.trainee, filterType: 'title', filterValue: 'trainee' }
     ];
 
-    // Combine and Filter
-    const visibleCards: CardInfo[] = [
-        ...coreCards,
-        ...titleCards.filter(card => card.count > 0).sort((a, b) => b.count - a.count)
-    ];
+    // Show all 12 cards (sorted by count)
+    const visibleCards: CardInfo[] = titleCards.sort((a, b) => b.count - a.count);
 
     if (error) {
         return (

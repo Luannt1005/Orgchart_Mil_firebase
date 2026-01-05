@@ -127,7 +127,7 @@ export default function DashboardPage() {
                         {/* Row 1: KPI Cards (fixed height) */}
                         <div className="shrink-0">
                             <StatsCards
-                                className="grid grid-cols-12 gap-3"
+                                className="grid grid-cols-6 gap-3"
                                 onFilterChange={handleFilterChange}
                                 activeFilter={activeFilter}
                                 nodes={dashboardNodes}

@@ -55,7 +55,10 @@ export function useSheetData(options?: UseSheetDataOptions) {
         {
             revalidateOnFocus: false,
             revalidateOnReconnect: false,
-            dedupingInterval: 60000,
+            revalidateIfStale: false,
+            revalidateOnMount: true,
+            dedupingInterval: 10 * 60 * 1000, // 10 minutes - keep cache active
+            focusThrottleInterval: 10 * 60 * 1000, // 10 minutes
             ...options
         }
     );
