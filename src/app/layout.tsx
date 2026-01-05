@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import AppHeader from "@/components/app.header";
+import Sidebar from "@/components/Sidebar";
 import AppFooter from "@/components/app.footer";
 
 const geistSans = Geist({
@@ -30,12 +30,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-gray-50`}
         suppressHydrationWarning
       >
-        <AppHeader />
-        <main className="min-h-screen flex flex-col w-full" style={{ paddingTop: '75px' }}>
-          <div className="flex-1">
-            {children}
-          </div>
-        </main>
+        <div className="flex w-full min-h-screen">
+          <Sidebar />
+          <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50 relative">
+            <div className="flex-1 overflow-auto">
+              {children}
+            </div>
+          </main>
+        </div>
         <AppFooter />
       </body>
     </html>
