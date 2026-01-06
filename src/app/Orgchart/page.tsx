@@ -45,30 +45,45 @@ function OrgChartPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const currentSector = searchParams.get("group") || "all";
+  const currentType = searchParams.get("type") || "all";
 
   // Use SWR cached data instead of direct fetch
   const { nodes, groups, loading: isOrgDataLoading } = useOrgData();
 
   const dispatchSectorChange = (sector: string) => {
+    const params = new URLSearchParams(searchParams.toString());
     if (sector === "all") {
-      router.push("/Orgchart");
+      params.delete("group");
     } else {
-      router.push(`/Orgchart?group=${encodeURIComponent(sector)}`);
+      params.set("group", sector);
     }
+    router.push(`/Orgchart?${params.toString()}`);
   };
+
+  const dispatchTypeChange = (type: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (type === "all") {
+      params.delete("type");
+    } else {
+      params.set("type", type);
+    }
+    router.push(`/Orgchart?${params.toString()}`);
+  }
 
   return (
     <div className="mil-container flex flex-col h-screen overflow-hidden p-0! bg-[#f2f2f2]">
       <DepartmentFilter
         currentSector={currentSector}
+        currentType={currentType}
         groups={groups}
         loading={isOrgDataLoading}
         hasNodes={nodes.length > 0}
         onSelect={dispatchSectorChange}
+        onSelectType={dispatchTypeChange}
       />
 
       <main className="flex-1 relative bg-white z-0 overflow-hidden">
-        <OrgChartView selectedGroup={currentSector} />
+        <OrgChartView selectedGroup={currentSector} selectedType={currentType} />
       </main>
     </div>
   );

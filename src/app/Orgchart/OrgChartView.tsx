@@ -9,6 +9,7 @@ import "./OrgChart.css";
 
 interface OrgChartProps {
   selectedGroup?: string;
+  selectedType?: string;
 }
 
 interface OrgChartNode {
@@ -28,7 +29,7 @@ interface OrgChartNode {
   joiningDate: string;
 }
 
-export default function OrgChartView({ selectedGroup }: OrgChartProps) {
+export default function OrgChartView({ selectedGroup, selectedType }: OrgChartProps) {
   const treeRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
 
@@ -39,7 +40,30 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
 
   // Transform and memoize nodes for OrgChart compatibility
   const nodes = useMemo(() => {
-    return rawNodes.map((item: any) => ({
+    let filteredRawNodes = rawNodes;
+
+    if (selectedType && selectedType !== 'all') {
+      const selectedTypes = selectedType.toLowerCase().split(',');
+
+      filteredRawNodes = filteredRawNodes.filter((item: any) => {
+        const nodeType = (item.type || "").toLowerCase();
+        const nodeTags = Array.isArray(item.tags)
+          ? item.tags
+          : typeof item.tags === 'string'
+            ? JSON.parse(item.tags || '[]')
+            : [];
+
+        const isGroup = nodeType === 'group' || nodeTags.includes('group');
+
+        if (isGroup) {
+          return selectedTypes.includes('group');
+        }
+
+        return selectedTypes.includes(nodeType);
+      });
+    }
+
+    return filteredRawNodes.map((item: any) => ({
       id: item.id,
       pid: item.pid || null,
       stpid: item.stpid || null,
@@ -59,7 +83,7 @@ export default function OrgChartView({ selectedGroup }: OrgChartProps) {
       description: item.description || "",
       joiningDate: item.joiningDate || ""
     } as OrgChartNode));
-  }, [rawNodes]);
+  }, [rawNodes, selectedType]);
 
   // Revalidate data after mutations (using SWR mutate)
   const revalidateData = useCallback(async () => {
