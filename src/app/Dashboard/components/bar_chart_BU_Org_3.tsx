@@ -52,11 +52,11 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
     }
 
     return (
-        <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col min-h-0 ${className}`}>
+        <div className={`bg-white rounded-xl shadow-sm p-2 h-full flex flex-col min-h-0 ${className}`}>
             {/* Header */}
             <div className="shrink-0 mb-2 flex items-center justify-between">
-                <h3 className="text-[22px] font-bold text-[#0F172A]">Departments</h3>
-                <span className="text-[10px] text-[#64748B]">{chartData.length} depts</span>
+                <h3 className="text-[15px] font-bold text-[#0F172A]">Departments</h3>
+                <span className="text-[12px] text-[#64748B]">{chartData.length} depts</span>
             </div>
 
             {/* Chart */}
@@ -95,7 +95,7 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
                             dataKey="count"
                             fill="url(#barGradient)"
                             radius={[6, 6, 0, 0]}
-                            barSize={50}
+                            barSize={38}
                         >
                             <LabelList
                                 dataKey="count"

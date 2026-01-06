@@ -8,6 +8,18 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+
+        // Validate ID
+        if (!id || typeof id !== 'string') {
+            return NextResponse.json({ error: "Invalid orgchart ID" }, { status: 400 });
+        }
+
+        // Check if db is initialized
+        if (!db) {
+            console.error("Firebase Firestore not initialized");
+            return NextResponse.json({ error: "Database not initialized" }, { status: 500 });
+        }
+
         const docRef = doc(db, "orgcharts", id);
         const docSnap = await getDoc(docRef);
 
@@ -17,11 +29,20 @@ export async function GET(
                 ...docSnap.data()
             });
         } else {
-            return NextResponse.json({ error: "Orgchart not found" }, { status: 404 });
+            // Return empty data instead of 404 to prevent UI errors
+            return NextResponse.json({
+                error: "Orgchart not found",
+                orgchart_id: id,
+                org_data: { data: [] }
+            }, { status: 404 });
         }
     } catch (err) {
-        console.error("GET Orgchart Error:", err);
-        return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+        const error = err as Error;
+        console.error("GET Orgchart Error:", error.message, error.stack);
+        return NextResponse.json({
+            error: error.message || "Unknown error occurred",
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
     }
 }
 

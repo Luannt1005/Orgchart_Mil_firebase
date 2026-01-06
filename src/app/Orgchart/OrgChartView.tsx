@@ -92,22 +92,22 @@ export default function OrgChartView({ selectedGroup, selectedType }: OrgChartPr
   }, [mutate]);
 
   // Listen for Ctrl key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!chartRef.current || chartRef.current.enableDragDrop) return;
-      chartRef.current.config.enableDragDrop = true;
-    };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (!chartRef.current) return;
-      chartRef.current.config.enableDragDrop = false;
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
+  // useEffect(() => {
+  //   const handleKeyDown = (e: KeyboardEvent) => {
+  //     if (!chartRef.current || chartRef.current.enableDragDrop) return;
+  //     chartRef.current.config.enableDragDrop = true;
+  //   };
+  //   const handleKeyUp = (e: KeyboardEvent) => {
+  //     if (!chartRef.current) return;
+  //     chartRef.current.config.enableDragDrop = false;
+  //   };
+  //   window.addEventListener('keydown', handleKeyDown);
+  //   window.addEventListener('keyup', handleKeyUp);
+  //   return () => {
+  //     window.removeEventListener('keydown', handleKeyDown);
+  //     window.removeEventListener('keyup', handleKeyUp);
+  //   };
+  // }, []);
 
   const addDepartment = async (nodeId: string) => {
     const chart = chartRef.current;
@@ -175,7 +175,7 @@ export default function OrgChartView({ selectedGroup, selectedType }: OrgChartPr
     // Create new chart only on first mount
     console.log("🆕 Creating new OrgChart instance...");
     const chart = new OrgChart(el, {
-      mouseScrool: OrgChart.none,
+      mouseScrool: OrgChart.action.zoom,
       collapse: { level: 1, allChildren: true },
       scaleInitial: 1,
       enableSearch: true,
@@ -183,9 +183,6 @@ export default function OrgChartView({ selectedGroup, selectedType }: OrgChartPr
       enableDragDrop: false,
       layout: OrgChart.normal,
       template: "big",
-      filterBy: {
-        type: {},
-      },
       nodeBinding: {
         imgs: "img",
         field_0: "name",
@@ -213,9 +210,6 @@ export default function OrgChartView({ selectedGroup, selectedType }: OrgChartPr
         },
         Emp_probation: {
           template: "big_v2",
-        },
-        filter: {
-          template: "dot",
         },
       },
     });

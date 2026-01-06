@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo, startTransition } from "react";
 import {
   PlusIcon,
   ArrowPathIcon,
@@ -117,8 +117,6 @@ interface SheetManagerProps {
 import useSWR from 'swr';
 import { swrFetcher } from '@/lib/api-client';
 
-// ... (keep interfaces)
-
 const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false }: SheetManagerProps) => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
@@ -135,24 +133,32 @@ const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false 
   const [showApprovalOnly, setShowApprovalOnly] = useState(initialShowApprovalOnly);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  // Use SWR for data fetching
+  // Use SWR for data fetching with suspense-like behavior
   const { data: apiResult, error: swrError, mutate, isLoading } = useSWR('/api/sheet', swrFetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300000,
     revalidateIfStale: false,
+    keepPreviousData: true, // Keep showing old data while revalidating
   });
 
-  // Sync SWR data to local state
+  // Sync SWR data to local state - using startTransition to prevent blocking
   useEffect(() => {
-    if (apiResult?.success) {
-      if (modifiedRows.size === 0) {
+    if (apiResult?.success && modifiedRows.size === 0) {
+      // Use startTransition to mark this as non-urgent update
+      startTransition(() => {
         const visibleHeaders = apiResult.headers.filter((h: string) =>
           VISIBLE_COLUMNS.includes(h) || VISIBLE_COLUMNS.includes(denormalizeFieldName(h))
         );
         setHeaders(visibleHeaders);
         setRows(apiResult.data || []);
-        setOriginalRows(JSON.parse(JSON.stringify(apiResult.data || [])));
-      }
+
+        // Lazy deep clone - defer to next tick to avoid blocking
+        requestIdleCallback?.(() => {
+          setOriginalRows(structuredClone?.(apiResult.data || []) || JSON.parse(JSON.stringify(apiResult.data || [])));
+        }) ?? setTimeout(() => {
+          setOriginalRows(structuredClone?.(apiResult.data || []) || JSON.parse(JSON.stringify(apiResult.data || [])));
+        }, 0);
+      });
     } else if (apiResult?.error) {
       setError(apiResult.error);
     }

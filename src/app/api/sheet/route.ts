@@ -9,18 +9,25 @@ import {
   updateDoc,
   deleteDoc,
   addDoc,
+  orderBy,
+  limit as firestoreLimit,
+  startAfter,
+  getCountFromServer,
 } from "firebase/firestore";
-import { getCachedData, invalidateCachePrefix } from "@/lib/cache";
+import { getCachedData, invalidateCachePrefix, getPaginatedCacheKey } from "@/lib/cache";
 
 // Cache TTL: 5 minutes for employee list
 const EMPLOYEES_CACHE_TTL = 5 * 60 * 1000;
+const PAGINATED_CACHE_TTL = 5 * 60 * 1000;
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const page = parseInt(searchParams.get("page") || "0");
+    const limit = parseInt(searchParams.get("limit") || "0");
 
-    console.log("GET /api/sheet - id:", id);
+    console.log("GET /api/sheet - id:", id, "page:", page, "limit:", limit);
 
     // If specific ID requested, fetch single doc (no cache for single docs)
     if (id) {
@@ -38,6 +45,85 @@ export async function GET(req: Request) {
         success: true,
         data: { id: docSnap.id, ...docSnap.data() }
       });
+    }
+
+    // ======= PAGINATED FETCH =======
+    if (page > 0 && limit > 0) {
+      try {
+        const cacheKey = getPaginatedCacheKey('employees', page, limit);
+
+        const cachedResult = await getCachedData(
+          cacheKey,
+          async () => {
+            console.log(`📡 [Cache MISS] Fetching page ${page} (limit ${limit}) from Firebase...`);
+            const employeesRef = collection(db, "employees");
+
+            // Get total count
+            const countSnap = await getCountFromServer(employeesRef);
+            const total = countSnap.data().count;
+            const totalPages = Math.ceil(total / limit);
+
+            // Build query with pagination
+            let employees: any[] = [];
+
+            if (page === 1) {
+              // First page - simple limit query (no orderBy to avoid index requirement)
+              const q = query(
+                employeesRef,
+                firestoreLimit(limit)
+              );
+              const snapshot = await getDocs(q);
+              employees = snapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+              }));
+            } else {
+              // For other pages, fetch all and slice (simpler, more reliable)
+              const allQuery = query(employeesRef);
+              const allSnapshot = await getDocs(allQuery);
+              const allEmployees = allSnapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+              }));
+
+              const startIdx = (page - 1) * limit;
+              const endIdx = startIdx + limit;
+              employees = allEmployees.slice(startIdx, endIdx);
+            }
+
+            console.log(`✅ Loaded ${employees.length} employees for page ${page}`);
+            return {
+              data: employees,
+              page,
+              limit,
+              total,
+              totalPages
+            };
+          },
+          PAGINATED_CACHE_TTL
+        );
+
+        // Get headers from the first employee or use default
+        const headers = cachedResult.data.length > 0
+          ? Object.keys(cachedResult.data[0])
+          : [];
+
+        const response = NextResponse.json({
+          success: true,
+          headers,
+          ...cachedResult
+        });
+
+        response.headers.set(
+          "Cache-Control",
+          "public, s-maxage=60, stale-while-revalidate=120"
+        );
+
+        return response;
+      } catch (paginationError) {
+        console.error("Pagination error, falling back to full fetch:", paginationError);
+        // Fall through to full data fetch below
+      }
     }
 
     // Use cached data for full employee list - reduces Firebase reads significantly

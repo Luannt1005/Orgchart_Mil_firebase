@@ -83,13 +83,31 @@ export const swrFetcher = async (url: string) => {
         'Accept': 'application/json',
       },
     });
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+
+    // Try to parse response body first
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
     }
-    const data = await response.json();
+
+    if (!response.ok) {
+      // For server errors, log but don't crash - return error structure
+      console.error(`❌ API error ${response.status} for URL: ${url}`, data?.error || '');
+
+      // Return error object that SWR can handle gracefully
+      return {
+        success: false,
+        error: data?.error || `API error: ${response.status}`,
+        status: response.status
+      };
+    }
+
     console.log(`✓ Fetched from ${response.headers.get('x-from-cache') ? 'cache' : 'server'}: ${url}`);
     return data;
   } catch (error) {
+    // Network errors - these should throw so SWR can retry
     console.error('SWR Fetch Error:', error);
     throw error;
   }

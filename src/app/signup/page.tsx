@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+// import Image from "next/image";
 import "./signup.css";
 
 // Firebase imports
@@ -134,12 +134,12 @@ export default function SignupPage() {
         {/* Logo */}
         <div className="signup-logo">
           <div className="logo-wrapper">
-            <Image
-              src="/milwaukee_logo.png"
-              width={140}
-              height={50}
+            <img
+              src="/Milwaukee-logo-red.png"
+              width={200}
+              height={90}
               alt="Milwaukee Tool"
-              priority
+              style={{ objectFit: 'contain' }}
             />
           </div>
         </div>

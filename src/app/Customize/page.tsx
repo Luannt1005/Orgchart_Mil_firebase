@@ -69,8 +69,22 @@ const Customize = () => {
     setLoadingChart(true);
     try {
       const response = await fetch(`/api/orgcharts/${selectedOrgId}`);
-      if (!response.ok) throw new Error("Failed to fetch orgchart");
       const res = await response.json();
+
+      // Handle 404 - orgchart not found (might have been deleted)
+      if (response.status === 404) {
+        console.warn(`Orgchart ${selectedOrgId} not found, it may have been deleted.`);
+        // Refresh the list to remove stale entries
+        fetchOrgList();
+        setOrgId("");
+        return;
+      }
+
+      // Handle other errors
+      if (!response.ok) {
+        console.error(`API error ${response.status}:`, res.error);
+        throw new Error(res.error || "Failed to fetch orgchart");
+      }
 
       const nodesData = res.org_data?.data || [];
       originalNodesRef.current = nodesData;
@@ -132,11 +146,14 @@ const Customize = () => {
       setOrgId(selectedOrgId);
     } catch (err) {
       console.error("Load chart error:", err);
-      alert("❌ Lỗi tải sơ đồ");
+      // Only show alert for unexpected errors, not 404s
+      if (err instanceof Error && !err.message.includes("404")) {
+        alert(`❌ Lỗi tải sơ đồ: ${err.message}`);
+      }
     } finally {
       setLoadingChart(false);
     }
-  }, []);
+  }, [fetchOrgList]);
 
   useEffect(() => {
     if (orgId && !loading) {

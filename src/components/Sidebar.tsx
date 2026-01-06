@@ -19,7 +19,6 @@ import { swrFetcher } from '@/lib/api-client';
 
 // API endpoints for prefetching
 const API_ENDPOINTS: { [key: string]: string } = {
-    '/Orgchart': '/api/get_data',
     '/Dashboard': '/api/sheet',
     '/SheetManager': '/api/sheet',
 };

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
         const session = await encrypt({ user, expires });
 
         // Set HttpOnly cookie
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
         cookieStore.set("auth", session, {
             expires,
             httpOnly: true,

@@ -62,14 +62,14 @@
 }
 
 /* Custom Search Box Styling */
-.boc-search {
+/* .boc-search {
     border: 1px solid #e5e7eb !important;
     border-radius: 12px !important;
     background: #fff !important;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
     padding: 12px 20px !important;
     font-weight: 600 !important;
-}
+} */
 
 /* Edit Menu / Details Menu */
 .boc-edit-form,

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import EmployeeTable from './components/Emp_table';
+import PaginatedEmployeeTable from './components/PaginatedEmpTable';
 import StatsCards from './components/Multi_card';
 import SeniorityChart from './components/Column_chart_seniority';
 import DonutChart from './components/Donutchart_byType';
@@ -57,10 +58,10 @@ export default function DashboardPage() {
 
     return (
         /* ===== PAGE WRAPPER - 100vh NO SCROLL ===== */
-        <div className="overflow-hidden flex flex-col bg-gray-200 pt-0">
+        <div className="h-screen overflow-hidden flex flex-col bg-gray-200 pt-0">
 
-            {/* ===== HEADER BAR (56px) ===== */}
-            <header className="h-14 shrink-0 bg-gray-200 border-b border-gray-200 px-5 flex items-center justify-between">
+            {/* ===== HEADER BAR (40px) ===== */}
+            <header className="h-10 shrink-0 bg-gray-200 border-b border-gray-200 px-5 flex items-center justify-between">
                 {/* Left: Title */}
                 <div>
                     <h1 className="text-[22px] font-bold text-[#0F172A] leading-tight">
@@ -125,7 +126,7 @@ export default function DashboardPage() {
                     <div className="col-span-7 flex flex-col gap-4 min-h-0">
 
                         {/* Row 1: KPI Cards (fixed height) */}
-                        <div className="shrink-0">
+                        <div className="shrink-0 min-h-[74px]">
                             <StatsCards
                                 className="grid grid-cols-6 gap-3"
                                 onFilterChange={handleFilterChange}
@@ -162,27 +163,37 @@ export default function DashboardPage() {
                     <div className="col-span-5 flex flex-col gap-4 min-h-0 h-full">
 
                         {/* Employee Table (main) */}
-                        <div className="min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                        <div className="h-[73%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div className="px-4 pt-3 pb-2 shrink-0 flex items-center justify-between">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Employee Roster
                                 </h2>
                                 <span className="text-[10px] text-gray-400 font-medium">
-                                    {dashboardNodes?.length || 0} total
+                                    {(!selectedManagerId && activeFilter.type === 'all')
+                                        ? 'Server-side pagination'
+                                        : `${dashboardNodes?.length || 0} total`}
                                 </span>
                             </div>
                             <div className="flex-1 min-h-0 overflow-hidden">
-                                <EmployeeTable
-                                    filter={activeFilter}
-                                    nodes={dashboardNodes}
-                                    loading={nodesLoading}
-                                    className="h-full"
-                                />
+                                {/* Use server-side pagination when no filters applied */}
+                                {!selectedManagerId && activeFilter.type === 'all' ? (
+                                    <PaginatedEmployeeTable
+                                        pageSize={20}
+                                        className="h-full"
+                                    />
+                                ) : (
+                                    <EmployeeTable
+                                        filter={activeFilter}
+                                        nodes={dashboardNodes}
+                                        loading={nodesLoading}
+                                        className="h-full"
+                                    />
+                                )}
                             </div>
                         </div>
 
                         {/* Upcoming Resignations */}
-                        <div className="flex-1 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                        <div className="h-[25%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div className="px-4 pt-3 pb-2 shrink-0">
                                 <h2 className="text-sm font-semibold text-[#0F172A]">
                                     Upcoming Resignations
