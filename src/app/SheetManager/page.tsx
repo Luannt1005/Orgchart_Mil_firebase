@@ -114,11 +114,15 @@ interface SheetManagerProps {
   enableApproval?: boolean;
 }
 
+import useSWR from 'swr';
+import { swrFetcher } from '@/lib/api-client';
+
+// ... (keep interfaces)
+
 const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false }: SheetManagerProps) => {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<SheetRow[]>([]);
   const [originalRows, setOriginalRows] = useState<SheetRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,34 +135,34 @@ const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false 
   const [showApprovalOnly, setShowApprovalOnly] = useState(initialShowApprovalOnly);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/sheet");
-      const result = await response.json();
-      if (result.success) {
-        const visibleHeaders = result.headers.filter((h: string) =>
+  // Use SWR for data fetching
+  const { data: apiResult, error: swrError, mutate, isLoading } = useSWR('/api/sheet', swrFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000,
+    revalidateIfStale: false,
+  });
+
+  // Sync SWR data to local state
+  useEffect(() => {
+    if (apiResult?.success) {
+      if (modifiedRows.size === 0) {
+        const visibleHeaders = apiResult.headers.filter((h: string) =>
           VISIBLE_COLUMNS.includes(h) || VISIBLE_COLUMNS.includes(denormalizeFieldName(h))
         );
         setHeaders(visibleHeaders);
-        // Important: result.data already contains lineManagerStatus etc. if they exist in Firestore
-        setRows(result.data || []);
-        setOriginalRows(JSON.parse(JSON.stringify(result.data || [])));
-        setModifiedRows(new Set());
-      } else {
-        setError(result.error || "Failed to load database");
+        setRows(apiResult.data || []);
+        setOriginalRows(JSON.parse(JSON.stringify(apiResult.data || [])));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
-    } finally {
-      setLoading(false);
+    } else if (apiResult?.error) {
+      setError(apiResult.error);
     }
-  }, []);
+  }, [apiResult, modifiedRows.size]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (swrError) {
+      setError(swrError.message || "Network error");
+    }
+  }, [swrError]);
 
   const handleFilterChange = (header: string, value: string) => {
     setFilters((prev) => ({ ...prev, [header]: value }));
@@ -269,8 +273,9 @@ const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false 
         if (result.success) successCount++;
       }
 
-      await loadData(); // Refresh and sync state
       setSuccessMessage(`Successfully processed ${successCount} records. Check 'Review Changes' for LM updates.`);
+      setModifiedRows(new Set()); // Clear modified rows so we can accept new data
+      await mutate(); // Refresh SWR cache
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (err) {
       setError("Failed to save changes. Please check connection.");
@@ -309,7 +314,7 @@ const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false 
           await fetch("/api/sync-orgchart", { method: "POST" });
         }
         setSuccessMessage(action === 'approve' ? "Changes approved and database updated." : "Request rejected successfully.");
-        await loadData();
+        await mutate();
         setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch (err) {
@@ -319,7 +324,7 @@ const SheetManager = ({ initialShowApprovalOnly = false, enableApproval = false 
     }
   };
 
-  if (loading) {
+  if (isLoading && rows.length === 0) {
     return (
       <div className={styles.spinner}>
         <ArrowPathIcon className="w-12 h-12 text-[#DB011C] animate-spin mx-auto mb-4" />

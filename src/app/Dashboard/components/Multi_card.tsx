@@ -162,8 +162,17 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
         { title: 'Trainee', count: stats.trainee, filterType: 'title', filterValue: 'trainee' }
     ];
 
-    // Show all 12 cards (sorted by count)
-    const visibleCards: CardInfo[] = titleCards.sort((a, b) => b.count - a.count);
+    // Show cards: Sort by count, and hide zero/empty cards if a specific filter/hierarchy is active
+    const visibleCards: CardInfo[] = useMemo(() => {
+        let sorted = [...titleCards].sort((a, b) => b.count - a.count);
+
+        // If a filter is active, or if we have significantly fewer total employees (implying a filtered view), hide zero counts
+        if (activeFilter?.type !== 'all' || stats.total < nodes.length) {
+            sorted = sorted.filter(c => c.count > 0);
+        }
+
+        return sorted;
+    }, [titleCards, activeFilter, stats.total, nodes.length]);
 
     if (error) {
         return (

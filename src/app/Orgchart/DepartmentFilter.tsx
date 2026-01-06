@@ -48,38 +48,31 @@ export default function DepartmentFilter({
 
     return (
         <div className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
-            <div className="px-6 py-4">
-                <div className="relative w-full max-w-md" ref={dropdownRef}>
+            <div className="px-4 py-2">
+                <div className="relative w-full max-w-sm" ref={dropdownRef}>
                     <div className="space-y-1">
                         <div className="flex items-center justify-between px-1">
                             <label className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.2em] leading-none">
                                 Filter by Department
                             </label>
-                            {/* Cache indicator */}
-                            {!loading && hasNodes && (
-                                <span className="text-[9px] text-green-500 font-medium flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                                    Cached
-                                </span>
-                            )}
                         </div>
 
                         <button
                             onClick={() => setIsFilterOpen(!isFilterOpen)}
-                            className={`flex items-center justify-between w-full px-5 py-3.5 bg-gray-50 border transition-all duration-200 group rounded-xl ${isFilterOpen
-                                ? 'border-[#DB011C] bg-white ring-4 ring-[#DB011C]/5'
+                            className={`flex items-center justify-between w-full px-3 py-2 bg-gray-50 border transition-all duration-200 group rounded-lg ${isFilterOpen
+                                ? 'border-[#DB011C] bg-white ring-2 ring-[#DB011C]/5'
                                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-100/50'
                                 }`}
                         >
-                            <div className="flex items-center gap-4 truncate overflow-hidden">
-                                <div className={`w-2 h-2 rounded-full ${currentSector === "all" ? 'bg-gray-400' : 'bg-[#DB011C]'}`}></div>
-                                <span className="text-lg font-bold text-gray-900 tracking-tight truncate">
+                            <div className="flex items-center gap-2 truncate overflow-hidden">
+                                <div className={`w-1.5 h-1.5 rounded-full ${currentSector === "all" ? 'bg-gray-400' : 'bg-[#DB011C]'}`}></div>
+                                <span className="text-sm font-bold text-gray-900 tracking-tight truncate">
                                     {currentSector === "all" ? "All Departments" : currentSector}
                                 </span>
                             </div>
 
                             <svg
-                                className={`w-5 h-5 transition-transform duration-300 ${isFilterOpen ? 'rotate-180 text-[#DB011C]' : 'text-gray-400 group-hover:text-gray-600'
+                                className={`w-4 h-4 transition-transform duration-300 ${isFilterOpen ? 'rotate-180 text-[#DB011C]' : 'text-gray-400 group-hover:text-gray-600'
                                     }`}
                                 fill="none" viewBox="0 0 24 24" stroke="currentColor"
                             >
@@ -89,16 +82,16 @@ export default function DepartmentFilter({
                     </div>
 
                     {isFilterOpen && (
-                        <div className="absolute top-full left-0 mt-2 w-full bg-white border border-gray-200 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.1)] animate-in fade-in slide-in-from-top-2 duration-200 z-100 overflow-hidden">
-                            <div className="p-3 bg-white border-b border-gray-100 flex gap-3">
+                        <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                            <div className="p-2 bg-white border-b border-gray-100 flex gap-2">
                                 <div className="relative flex-1 group">
                                     <input
                                         type="text"
-                                        placeholder="Search departments..."
+                                        placeholder="Search..."
                                         value={sectorQuery}
                                         onChange={(e) => setSectorQuery(e.target.value)}
                                         autoFocus
-                                        className="w-full bg-gray-50 border border-gray-200 px-4 py-2.5 text-sm text-gray-900 rounded-lg focus:outline-none focus:border-[#DB011C] focus:bg-white transition-all placeholder:text-gray-400"
+                                        className="w-full bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs text-gray-900 rounded-md focus:outline-none focus:border-[#DB011C] focus:bg-white transition-all placeholder:text-gray-400"
                                     />
                                 </div>
                             </div>
@@ -106,7 +99,7 @@ export default function DepartmentFilter({
                             <div className="max-h-[50vh] overflow-y-auto custom-scrollbar">
                                 <button
                                     onClick={() => handleSelect("all")}
-                                    className={`w-full px-5 py-4 text-left text-sm font-semibold transition-all flex items-center justify-between ${currentSector === "all" ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                    className={`w-full px-4 py-2 text-left text-xs font-semibold transition-all flex items-center justify-between ${currentSector === "all" ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                         }`}
                                 >
                                     <span>All Departments</span>
@@ -117,7 +110,7 @@ export default function DepartmentFilter({
                                     <button
                                         key={sector}
                                         onClick={() => handleSelect(sector)}
-                                        className={`w-full px-5 py-4 text-left text-sm font-semibold transition-all flex items-center justify-between border-t border-gray-50/50 ${currentSector === sector ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                        className={`w-full px-4 py-2 text-left text-xs font-semibold transition-all flex items-center justify-between border-t border-gray-50/50 ${currentSector === sector ? "bg-red-50 text-[#DB011C]" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                             }`}
                                     >
                                         <span className="truncate pr-4">{sector}</span>

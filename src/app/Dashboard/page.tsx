@@ -57,7 +57,7 @@ export default function DashboardPage() {
 
     return (
         /* ===== PAGE WRAPPER - 100vh NO SCROLL ===== */
-        <div className="overflow-hidden flex flex-col bg-gray-200 pt-6">
+        <div className="overflow-hidden flex flex-col bg-gray-200 pt-0">
 
             {/* ===== HEADER BAR (56px) ===== */}
             <header className="h-14 shrink-0 bg-gray-200 border-b border-gray-200 px-5 flex items-center justify-between">
@@ -118,7 +118,7 @@ export default function DashboardPage() {
             </header>
 
             {/* ===== MAIN CONTENT (fills remaining height) ===== */}
-            <main className="flex-1 bg-gray-200 min-h-0 p-5">
+            <main className="flex-1 bg-gray-200 min-h-0 p-2">
                 <div className="h-full grid grid-cols-12 gap-4">
 
                     {/* ===== LEFT COLUMN (7 cols) ===== */}
