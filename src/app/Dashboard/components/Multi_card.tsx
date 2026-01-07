@@ -16,6 +16,7 @@ interface StatsCardsProps {
     activeFilter?: EmployeeFilter;
     nodes: OrgNode[];  // Required prop
     loading?: boolean;
+    isFiltered?: boolean;
 }
 
 interface CardInfo {
@@ -65,7 +66,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, count, loading, onClick, isA
     );
 };
 
-const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, activeFilter, nodes, loading = false }) => {
+const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, activeFilter, nodes, loading = false, isFiltered = false }) => {
     // Data is now passed from parent - no more independent fetching
     const error = null; // Error handling moved to parent
 
@@ -167,7 +168,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ className, onFilterChange, acti
         let sorted = [...titleCards].sort((a, b) => b.count - a.count);
 
         // If a filter is active, or if we have significantly fewer total employees (implying a filtered view), hide zero counts
-        if (activeFilter?.type !== 'all' || stats.total < nodes.length) {
+        if (activeFilter?.type !== 'all' || isFiltered) {
             sorted = sorted.filter(c => c.count > 0);
         }
 

@@ -37,8 +37,16 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
 
     if (loading) {
         return (
-            <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex items-center justify-center ${className}`}>
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C40000]"></div>
+            <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col ${className}`}>
+                <div className="flex items-center justify-between mb-4 animate-pulse">
+                    <div className="h-5 w-24 bg-gray-200 rounded"></div>
+                    <div className="h-3 w-16 bg-gray-200 rounded"></div>
+                </div>
+                <div className="flex-1 flex items-end gap-2 animate-pulse px-2 overflow-hidden">
+                    {[...Array(12)].map((_, i) => (
+                        <div key={i} className="flex-1 bg-gray-100 rounded-t" style={{ height: `${[45, 60, 75, 50, 65, 40, 55, 70, 45, 60, 50, 65][i]}%` }}></div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -87,15 +95,25 @@ const BUOrg3Chart: React.FC<BUOrg3ChartProps> = ({ className, nodes, loading = f
                             tickLine={false}
                         />
                         <Tooltip
-                            contentStyle={{ fontSize: 12, borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            isAnimationActive={false}
+                            contentStyle={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: '#1E293B',
+                                fontSize: '12px'
+                            }}
+                            itemStyle={{ color: '#1E293B' }}
                             formatter={(value: number | undefined) => [value ?? 0, 'Employees']}
                             labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                            labelStyle={{ color: '#64748B', fontWeight: 600, marginBottom: '4px' }}
                         />
                         <Bar
                             dataKey="count"
                             fill="url(#barGradient)"
                             radius={[6, 6, 0, 0]}
-                            barSize={38}
+                            barSize={35}
                         >
                             <LabelList
                                 dataKey="count"

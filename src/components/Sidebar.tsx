@@ -31,7 +31,7 @@ export default function Sidebar() {
     const navItems = [
         { name: 'Org Chart', path: '/Orgchart', icon: HomeIcon },
         { name: 'Dashboard', path: '/Dashboard', icon: ChartBarSquareIcon },
-        { name: 'Import HR Data', path: '/Import_HR_Data', icon: CloudArrowUpIcon },
+        // { name: 'Import HR Data', path: '/Import_HR_Data', icon: CloudArrowUpIcon },
         { name: 'Edit Table HR', path: '/SheetManager', icon: TableCellsIcon },
         { name: 'Customize Chart', path: '/Customize', icon: PencilSquareIcon },
         { name: 'Admin Console', path: '/Admin', icon: Cog6ToothIcon },

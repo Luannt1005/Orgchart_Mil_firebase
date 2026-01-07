@@ -133,6 +133,7 @@ export default function DashboardPage() {
                                 activeFilter={activeFilter}
                                 nodes={dashboardNodes}
                                 loading={nodesLoading}
+                                isFiltered={!!selectedManagerId || activeFilter.type !== 'all'}
                             />
                         </div>
 
@@ -163,9 +164,9 @@ export default function DashboardPage() {
                     <div className="col-span-5 flex flex-col gap-4 min-h-0 h-full">
 
                         {/* Employee Table (main) */}
-                        <div className="h-[73%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                        <div className="h-[65%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div className="px-4 pt-3 pb-2 shrink-0 flex items-center justify-between">
-                                <h2 className="text-sm font-semibold text-[#0F172A]">
+                                <h2 className="text-[13px] font-bold text-[#0F172A]">
                                     Employee Roster
                                 </h2>
                                 <span className="text-[10px] text-gray-400 font-medium">
@@ -178,7 +179,7 @@ export default function DashboardPage() {
                                 {/* Use server-side pagination when no filters applied */}
                                 {!selectedManagerId && activeFilter.type === 'all' ? (
                                     <PaginatedEmployeeTable
-                                        pageSize={20}
+                                        pageSize={10}
                                         className="h-full"
                                     />
                                 ) : (
@@ -193,9 +194,9 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Upcoming Resignations */}
-                        <div className="h-[25%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+                        <div className="h-[34%] shrink-0 min-h-0 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
                             <div className="px-4 pt-3 pb-2 shrink-0">
-                                <h2 className="text-sm font-semibold text-[#0F172A]">
+                                <h2 className="text-[13px] pl-1 font-bold text-[#0F172A]">
                                     Upcoming Resignations
                                 </h2>
                             </div>

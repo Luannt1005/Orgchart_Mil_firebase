@@ -110,8 +110,19 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({ className, filter, nodes,
 
     if (loading) {
         return (
-            <div className={`h-full flex items-center justify-center ${className}`}>
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C40000]"></div>
+            <div className={`h-full flex flex-col ${className}`}>
+                <div className="flex-1 p-4 space-y-4 animate-pulse">
+                    {[...Array(8)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-4">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 shrink-0"></div>
+                            <div className="flex-1 space-y-2">
+                                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                                <div className="h-2 bg-gray-100 rounded w-1/4"></div>
+                            </div>
+                            <div className="w-16 h-3 bg-gray-100 rounded"></div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }

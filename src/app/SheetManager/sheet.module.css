@@ -11,16 +11,16 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  padding: 10px 0;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 32px;
+  font-weight: 800;
   color: #333;
+  letter-spacing: -0.5px;
 }
 
 .filterBox {
@@ -47,10 +47,11 @@
 }
 
 .filterRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 0;
 }
 
 .filterInputWrapper {

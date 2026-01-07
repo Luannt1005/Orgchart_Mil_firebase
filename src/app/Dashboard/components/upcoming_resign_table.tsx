@@ -56,8 +56,18 @@ const UpcomingResignTable: React.FC<UpcomingResignTableProps> = ({ className, no
 
     if (loading) {
         return (
-            <div className={`h-full flex items-center justify-center ${className}`}>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#C40000]"></div>
+            <div className={`h-full flex flex-col ${className}`}>
+                <div className="flex-1 p-3 space-y-3 animate-pulse">
+                    {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex items-center gap-3">
+                            <div className="w-6 h-6 rounded-full bg-gray-200 shrink-0"></div>
+                            <div className="flex-1 space-y-1.5">
+                                <div className="h-2.5 bg-gray-200 rounded w-2/3"></div>
+                                <div className="h-2 bg-gray-100 rounded w-1/2"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -77,7 +87,7 @@ const UpcomingResignTable: React.FC<UpcomingResignTableProps> = ({ className, no
                     <svg className="w-8 h-8 mx-auto mb-1 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p className="text-[11px]">No upcoming resignations</p>
+                    <p className="text-[13px] pl-1 py-1 font-bold text-[#0F172A]">No upcoming resignations</p>
                 </div>
             </div>
         );

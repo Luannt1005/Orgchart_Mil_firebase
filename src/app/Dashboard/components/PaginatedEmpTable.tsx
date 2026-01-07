@@ -13,7 +13,7 @@ interface PaginatedEmployeeTableProps {
  */
 const PaginatedEmployeeTable: React.FC<PaginatedEmployeeTableProps> = ({
     className,
-    pageSize = 20
+    pageSize = 10
 }) => {
     const {
         nodes,

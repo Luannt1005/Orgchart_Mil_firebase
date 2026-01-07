@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import type { EmployeeFilter } from '../page';
 import { OrgNode } from '@/types/orgchart';
 
@@ -75,8 +75,14 @@ const DonutChart: React.FC<DonutChartProps> = ({ className, onFilterChange, node
     if (loading) {
         return (
             <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col ${className}`}>
-                <div className="flex items-center justify-center flex-1">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C40000]"></div>
+                <div className="flex-1 flex flex-col items-center justify-center gap-4 animate-pulse">
+                    {/* Skeleton for Pie Chart */}
+                    <div className="w-48 h-48 rounded-full border-[16px] border-gray-100"></div>
+                    <div className="flex gap-4 mt-2">
+                        <div className="h-3 w-16 bg-gray-100 rounded"></div>
+                        <div className="h-3 w-16 bg-gray-100 rounded"></div>
+                        <div className="h-3 w-16 bg-gray-100 rounded"></div>
+                    </div>
                 </div>
             </div>
         );
@@ -96,7 +102,7 @@ const DonutChart: React.FC<DonutChartProps> = ({ className, onFilterChange, node
         <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col min-h-0 ${className}`}>
             {/* Header */}
             <div className="shrink-0 mb-2">
-                <h3 className="text-sm font-semibold text-[#0F172A]">Employee Type</h3>
+                <h3 className="text-[13px] pl-1 font-bold text-[#0F172A]">Employee Type</h3>
             </div>
 
             {/* Chart */}
@@ -122,6 +128,18 @@ const DonutChart: React.FC<DonutChartProps> = ({ className, onFilterChange, node
                                 />
                             ))}
                         </Pie>
+                        <Tooltip
+                            isAnimationActive={false}
+                            contentStyle={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: '#1E293B',
+                                fontSize: '12px'
+                            }}
+                            itemStyle={{ color: '#1E293B' }}
+                        />
                         <Legend content={renderLegend} verticalAlign="bottom" height={30} />
                     </PieChart>
                 </ResponsiveContainer>

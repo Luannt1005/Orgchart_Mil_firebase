@@ -121,8 +121,17 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
     if (loading) {
         return (
             <div className={`bg-white rounded-xl shadow-sm p-4 h-full flex flex-col ${className}`}>
-                <div className="flex items-center justify-center flex-1">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C40000]"></div>
+                <div className="flex items-center justify-between mb-4 animate-pulse">
+                    <div className="h-5 w-32 bg-gray-200 rounded"></div>
+                    <div className="flex gap-2">
+                        <div className="h-3 w-12 bg-gray-200 rounded"></div>
+                        <div className="h-3 w-12 bg-gray-200 rounded"></div>
+                    </div>
+                </div>
+                <div className="flex-1 flex items-end justify-between gap-2 px-2 animate-pulse">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="w-full bg-gray-100 rounded-t-lg" style={{ height: `${[45, 60, 35, 70, 50, 65][i]}%` }}></div>
+                    ))}
                 </div>
             </div>
         );
@@ -143,8 +152,7 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
             {/* Header */}
             <div className="shrink-0 mb-4 flex items-center justify-between">
                 <div>
-                    <h3 className="text-[16px] pl-2 font-bold text-[#0F172A]">Headcount by Tenure</h3>
-                    <p className="text-[11px] pl-2 text-[#64748B]">{totalEmployees.toLocaleString()} employees categorized by experience</p>
+                    <h3 className="text-[13px] pl-1 py-1 font-bold text-[#0F172A]">Headcount by Tenure</h3>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1.5">
@@ -186,15 +194,26 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
                             tickLine={false}
                         />
                         <Tooltip
-                            contentStyle={{ fontSize: 12, borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            isAnimationActive={false}
+                            contentStyle={{
+                                backgroundColor: '#FFFFFF',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                color: '#1E293B',
+                                fontSize: '12px'
+                            }}
+                            itemStyle={{ color: '#1E293B' }}
                             formatter={(value: any, name: any) => [value, name]}
                             labelFormatter={(label) => chartData.find(d => d.name === label)?.fullName || label}
+                            labelStyle={{ color: '#64748B', fontWeight: 600, marginBottom: '4px' }}
                         />
                         <Bar
                             dataKey="Staff"
                             stackId="a"
                             fill="url(#staffGradient)"
                             radius={[0, 0, 0, 0]}
+                            barSize={35}
                         >
                             <LabelList
                                 dataKey="Staff"
@@ -208,6 +227,7 @@ const SeniorityChart: React.FC<SeniorityChartProps> = ({ className, onFilterChan
                             stackId="a"
                             fill="url(#idlGradient)"
                             radius={[6, 6, 0, 0]}
+                            barSize={35}
                         >
                             <LabelList
                                 dataKey="IDL"

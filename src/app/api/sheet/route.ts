@@ -47,76 +47,83 @@ export async function GET(req: Request) {
       });
     }
 
-    // ======= PAGINATED FETCH =======
+    // ======= PAGINATED & FILTERED FETCH =======
     if (page > 0 && limit > 0) {
       try {
-        const cacheKey = getPaginatedCacheKey('employees', page, limit);
-
-        const cachedResult = await getCachedData(
-          cacheKey,
+        // First, get or create the cached full dataset (this happens once every 5 minutes)
+        const fullDataset = await getCachedData(
+          'employees_all_for_pagination',
           async () => {
-            console.log(`📡 [Cache MISS] Fetching page ${page} (limit ${limit}) from Firebase...`);
+            console.log(`📡 [Cache MISS] Fetching all employees for pagination...`);
             const employeesRef = collection(db, "employees");
+            const allSnapshot = await getDocs(query(employeesRef));
 
-            // Get total count
-            const countSnap = await getCountFromServer(employeesRef);
-            const total = countSnap.data().count;
-            const totalPages = Math.ceil(total / limit);
+            const employees = allSnapshot.docs.map(docSnap => ({
+              id: docSnap.id,
+              ...docSnap.data()
+            }));
 
-            // Build query with pagination
-            let employees: any[] = [];
+            // Extract headers from first employee
+            const headers = employees.length > 0
+              ? Object.keys(employees[0])
+              : [];
 
-            if (page === 1) {
-              // First page - simple limit query (no orderBy to avoid index requirement)
-              const q = query(
-                employeesRef,
-                firestoreLimit(limit)
-              );
-              const snapshot = await getDocs(q);
-              employees = snapshot.docs.map(docSnap => ({
-                id: docSnap.id,
-                ...docSnap.data()
-              }));
-            } else {
-              // For other pages, fetch all and slice (simpler, more reliable)
-              const allQuery = query(employeesRef);
-              const allSnapshot = await getDocs(allQuery);
-              const allEmployees = allSnapshot.docs.map(docSnap => ({
-                id: docSnap.id,
-                ...docSnap.data()
-              }));
-
-              const startIdx = (page - 1) * limit;
-              const endIdx = startIdx + limit;
-              employees = allEmployees.slice(startIdx, endIdx);
-            }
-
-            console.log(`✅ Loaded ${employees.length} employees for page ${page}`);
-            return {
-              data: employees,
-              page,
-              limit,
-              total,
-              totalPages
-            };
+            console.log(`✅ Cached ${employees.length} employees for pagination`);
+            return { employees, headers, total: employees.length };
           },
           PAGINATED_CACHE_TTL
         );
 
-        // Get headers from the first employee or use default
-        const headers = cachedResult.data.length > 0
-          ? Object.keys(cachedResult.data[0])
-          : [];
+        // --- Server-Side Filtering Logic ---
+        let filteredData = fullDataset.employees;
+
+        // Extract filtering params (everything except known pagination/system params)
+        const excludedParams = ['page', 'limit', 'id', 'preventCache'];
+        const filters: { [key: string]: string } = {};
+
+        searchParams.forEach((value, key) => {
+          if (!excludedParams.includes(key) && value.trim() !== '') {
+            filters[key] = value.toLowerCase();
+          }
+        });
+
+        // Apply filters if any exist
+        if (Object.keys(filters).length > 0) {
+          filteredData = filteredData.filter((emp: any) => {
+            return Object.entries(filters).every(([key, filterValue]) => {
+              // Handle "denormalized" keys if necessary, or assume exact match from client
+              const empValue = String(emp[key] || '').toLowerCase();
+              return empValue.includes(filterValue);
+            });
+          });
+        }
+
+        // Calculate pagination from FILTERED data
+        const total = filteredData.length;
+        const totalPages = Math.ceil(total / limit);
+        const startIdx = (page - 1) * limit;
+        const endIdx = startIdx + limit;
+        const paginatedData = filteredData.slice(startIdx, endIdx);
+
+        console.log(`📄 Page ${page}: serving ${paginatedData.length} records (${startIdx}-${endIdx} of ${total}) | Filters: ${JSON.stringify(filters)}`);
 
         const response = NextResponse.json({
           success: true,
-          headers,
-          ...cachedResult
+          headers: fullDataset.headers,
+          data: paginatedData,
+          page,
+          limit,
+          total,
+          totalPages
         });
 
+        // Dynamic cache control based on whether we are filtering
+        const hasFilters = Object.keys(filters).length > 0;
         response.headers.set(
           "Cache-Control",
-          "public, s-maxage=60, stale-while-revalidate=120"
+          hasFilters
+            ? "no-store" // Don't cache deeply filtered search results to avoid exploding cache
+            : "public, s-maxage=60, stale-while-revalidate=120"
         );
 
         return response;
